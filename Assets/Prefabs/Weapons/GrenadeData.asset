@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ef8cb79a996cd1445b34fcf8545f0ab3, type: 3}
+  m_Name: GrenadeData
+  m_EditorClassIdentifier: Assembly-CSharp::UtilityData
+  itemName: grenade
+  itemIcon: {fileID: 2800000, guid: 183bfd0b3a85aea4d9a564c95a83dff7, type: 3}
+  slot: 3
+  maxStack: 5
+  price: 6
+  utilityPrefab: {fileID: 589411781778006724, guid: e02b31792a067c74a81e275fcda3930b, type: 3}
+  utilityPickupPrefab: {fileID: 1269459932145477485, guid: 2866da4224ede624a8ff95c004a099d4, type: 3}
+  damage: 100
+  radius: 5
+  fuseTime: 2
+  throwCooldown: 2

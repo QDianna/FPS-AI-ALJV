@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e2bfc2f0ca1f00644acd8e1a3d55a4e2, type: 3}
+  m_Name: Riffle00Data
+  m_EditorClassIdentifier: Assembly-CSharp::FirearmData
+  itemName: Galil AR
+  itemIcon: {fileID: 2800000, guid: 09265231e818ff64d92af4067bea79f3, type: 3}
+  slot: 2
+  maxStack: 1
+  price: 50
+  firearmPrefab: {fileID: 8997319865255256032, guid: 7cd6034e298a8e441a346815e39246d7, type: 3}
+  firearmPickupPrefab: {fileID: 4784104299628431976, guid: 6af37491f6f5466479659bf4927902e3, type: 3}
+  damage: 20
+  bullets: 512
+  fireRate: 0.12

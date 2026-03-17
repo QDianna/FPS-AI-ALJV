@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e2bfc2f0ca1f00644acd8e1a3d55a4e2, type: 3}
+  m_Name: Pistol00Data
+  m_EditorClassIdentifier: Assembly-CSharp::FirearmData
+  itemName: Glock-18
+  itemIcon: {fileID: 2800000, guid: e3a5fb3d7ff2aa14dbb3b064fcbddea1, type: 3}
+  slot: 1
+  maxStack: 1
+  price: 20
+  firearmPrefab: {fileID: 6346332626862193362, guid: aa982ad8847c81548b28dfbe80dc808f, type: 3}
+  firearmPickupPrefab: {fileID: 5857265102319029462, guid: abcacdd6aba8e2245a91c18f8707549d, type: 3}
+  damage: 10
+  bullets: 124
+  fireRate: 0.24

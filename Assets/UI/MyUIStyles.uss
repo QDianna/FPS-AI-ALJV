@@ -1,0 +1,29 @@
+#HealthBar {
+    --unity-progress-bar-background-color: #2b2b2b;
+    --unity-progress-bar-fill-color: #ff0000;
+}
+
+#ArmorBar {
+    --unity-progress-bar-background-color: #2b2b2b;
+    --unity-progress-bar-fill-color: #7b00ff;
+}
+
+.warning {
+    color: red;
+    scale: 1.25;
+    transition-property: scale, color;
+    transition-duration: 0.2s;
+}
+
+.selected {
+    scale: 1.5;
+    transition-property: scale;
+    transition-duration: 0.2s;
+}
+
+.normal {
+    color: #000000;
+    scale: 1.0;
+    transition-property: scale, color;
+    transition-duration: 0.2s;
+}
