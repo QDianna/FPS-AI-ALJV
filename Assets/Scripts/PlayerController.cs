@@ -1,17 +1,18 @@
-using Unity.VisualScripting;
 using UnityEngine;
-using UnityEngine.AI;
 using UnityEngine.InputSystem;
 
-public class PlayerController : MonoBehaviour
+public class PlayerController : MonoBehaviour, IDamageable
 {
     public static PlayerController Instance { get; private set; }
     
     [Header("References")]
+    public PlayerWeaponsController weaponsController;
     [SerializeField] private CharacterController characterController;
+    [SerializeField] private WeaponAlign weaponAlign;
+    [SerializeField] private Transform weaponHolder;
+    
     [SerializeField] private Transform cameraTransform;
     [SerializeField] private LayerMask weaponPickupMask;
-    public PlayerWeaponsController weaponsController;
     
     [Header("Movement Parameters")]
     [SerializeField] private float walkSpeed = 10f;
@@ -50,9 +51,10 @@ public class PlayerController : MonoBehaviour
         }
 
         Instance = this;
+        
         characterController = GetComponent<CharacterController>();
         weaponsController = GetComponent<PlayerWeaponsController>();
-        // clickToMove = GetComponent<ClickToMove>();
+        weaponAlign = GetComponent<WeaponAlign>();
     }
     
     void Start()
@@ -72,13 +74,18 @@ public class PlayerController : MonoBehaviour
     void Update()
     {
         HandleMovement();
-
-        HandleFire();
+        
+        HandleFire(); 
         
         // find pick-up-able weapons with raycast
         Ray ray = new Ray(cameraTransform.position, cameraTransform.forward);
         if (Physics.Raycast(ray, out RaycastHit hit, pickupRange, weaponPickupMask)) 
             GameUI.Instance.ShowNotification("Press E to pick up the weapon");
+    }
+    
+    void LateUpdate()
+    {
+        weaponAlign.SetAimDirection(cameraTransform.forward);
     }
     
     // ---------------------- INPUT SYSTEM CALLBACKS ---------------------- //
@@ -100,32 +107,12 @@ public class PlayerController : MonoBehaviour
     {
         if (GameUI.Instance != null && GameUI.Instance.IsShopOpen)
             return;
- 
-        // if (!ctx.performed) return;
         
         if (ctx.performed)
             isFiring = true;
 
         if (ctx.canceled)
             isFiring = false;
-        
-        /*
-        if (!weaponsController.activeFirearm)
-            Debug.Log("No active weapon!");
-        else
-        {
-            Debug.Log("Weapon fire");
-            weaponsController.activeFirearm.Fire();
-        }
-
-        if (!weaponsController.activeKnife.isActiveAndEnabled)
-            Debug.Log("No active knife");
-        else
-        {
-            Debug.Log("Knife attack");
-            weaponsController.activeKnife.Attack();
-        }
-        */
     }
     
     private void HandleFire()
@@ -135,7 +122,10 @@ public class PlayerController : MonoBehaviour
 
         if (weaponsController.activeFirearm)
         {
-            weaponsController.activeFirearm.Fire();
+            weaponsController.activeFirearm.Fire(
+                cameraTransform.position, 
+                cameraTransform.forward
+            );
         }
         else if (weaponsController.activeKnife.isActiveAndEnabled)
         {
@@ -272,7 +262,7 @@ public class PlayerController : MonoBehaviour
     
     // --------------------------- PLAYER STATS --------------------------- //
     
-    public void TakeDamage(float amount, Vector3 hitDirection)
+    public void TakeDamage(float amount)
     {
         /*float armorTank = currentArmor - amount;
         if (currentArmor > 0)
@@ -285,7 +275,7 @@ public class PlayerController : MonoBehaviour
         {
             currentHealth = 0f;
             GameUI.Instance.UpdateHealthUI();
-            Debug.Log("Player died");
+            // Debug.Log("Player died");
             return;
         }
 
@@ -395,5 +385,4 @@ public class PlayerController : MonoBehaviour
         GameUI.Instance.UpdateMoneyUI();
         GameUI.Instance.UpdateArmorUI();
     }
-    
 }

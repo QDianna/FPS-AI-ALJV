@@ -15,6 +15,7 @@ GameObject:
   - component: {fileID: 7939711267881193608}
   - component: {fileID: 5033014985102962163}
   - component: {fileID: 4981676901418972431}
+  - component: {fileID: 8591663237152547059}
   - component: {fileID: 4342257167614644913}
   m_Layer: 6
   m_Name: PlayerFPS
@@ -391,13 +392,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f7d2885db07e9564eaab0440b4246678, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
+  weaponsController: {fileID: 4981676901418972431}
   characterController: {fileID: 8259241174813035293}
+  weaponAlign: {fileID: 8591663237152547059}
+  weaponHolder: {fileID: 2884063589906317071}
   cameraTransform: {fileID: 0}
   weaponPickupMask:
     serializedVersion: 2
     m_Bits: 512
-  weaponsController: {fileID: 4981676901418972431}
-  walkSpeed: 10
+  walkSpeed: 6
   runSpeed: 20
   gravity: -9.8
   jumpForce: 5
@@ -430,6 +433,21 @@ MonoBehaviour:
   activeFirearm: {fileID: 0}
   activeUtility: {fileID: 0}
   activeSlot: 0
+--- !u!114 &8591663237152547059
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 345606884923042681}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 41d740f756cc1d349b64588d2f1caa45, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WeaponAlign
+  weaponPivot: {fileID: 2884063589906317071}
+  rotationSpeed: 360
+  instant: 0
 --- !u!114 &4342257167614644913
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -653,7 +671,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2884063589906317071}
   m_Layer: 6
-  m_Name: FirearmGripPoint
+  m_Name: Weapon Pivot
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

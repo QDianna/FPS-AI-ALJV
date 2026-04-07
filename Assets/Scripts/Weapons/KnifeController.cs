@@ -40,13 +40,9 @@ public class KnifeController : MonoBehaviour
         if (Physics.Raycast(cameraTransform.position, cameraTransform.forward,
                 out RaycastHit hit, range, hitMask))
         {
-            if (hit.collider.CompareTag("Enemy"))
+            if (hit.collider.TryGetComponent<EnemyHealth>(out var enemy))
             {
-                EnemyController enemy = hit.collider.GetComponent<EnemyController>();
-                if (enemy != null)
-                {
-                    enemy.TakeDamage(damage);
-                }
+                enemy.TakeDamage(damage);
             }
         }
 

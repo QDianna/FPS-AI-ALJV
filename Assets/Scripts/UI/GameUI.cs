@@ -58,12 +58,24 @@ public class GameUI : MonoBehaviour
         armorBar  = root.Q<ProgressBar>("ArmorBar");
         
         moneyLabel = root.Q<Label>("MoneyLabel");
+        
         notificationLabel = root.Q<Label>("NotificationLabel");
-        notificationLabel.style.display = DisplayStyle.None;
+        if (notificationLabel != null)
+            notificationLabel.style.display = DisplayStyle.None;
+        else
+            Debug.LogError("NotificationLabel not found");
+        
         bulletsLabel = root.Q<Label>("BulletsLabel");
-        bulletsLabel.AddToClassList("normal");
+        if (bulletsLabel != null)
+            bulletsLabel.AddToClassList("normal");
+        else
+            Debug.LogError("BulletsLabel not found");
+        
         killsLabel = root.Q<Label>("KillsLabel");
-        killsLabel.AddToClassList("normal");
+        if (killsLabel != null)
+            killsLabel.AddToClassList("normal");
+        else
+            Debug.LogError("KillsLabel not found");
         
         // weapons slots visual elements
         knifeSlot             = root.Q<VisualElement>("KnifeSlot");
@@ -73,6 +85,11 @@ public class GameUI : MonoBehaviour
         
         // shop visual elements
         shopInterface = root.Q<VisualElement>("ShopInterface");
+        if (shopInterface == null)
+        {
+            Debug.LogError("ShopInterface not found");
+            return;
+        }
         
         buyPistol00Slot = shopInterface.Q<VisualElement>("BuyPistol00Slot");
         buyPistol01Slot = shopInterface.Q<VisualElement>("BuyPistol01Slot");
@@ -136,7 +153,12 @@ public class GameUI : MonoBehaviour
     void BindShopItem(string uiName, ItemData item)
     {
         VisualElement ve = root.Q<VisualElement>(uiName);
-
+        if (ve == null)
+        {
+            Debug.LogError(uiName + " not found");
+            return;
+        }
+        
         ve.style.backgroundImage = new StyleBackground(item.itemIcon);
         
         // todo display item name and price

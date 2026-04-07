@@ -3,25 +3,24 @@ using UnityEngine;
 public class FirearmController : MonoBehaviour
 {
     [Header("References")]
-    [SerializeField] private Animator animator;
-    [SerializeField] private Camera mainCamera;
-    [SerializeField] private Transform firePoint;
-    // [SerializeField] private GameObject projectilePrefab;
-
+    public Transform firePoint;
+    [SerializeField] private ParticleSystem muzzleFlash;
+    [SerializeField] private GameObject tracerPrefab;
+    [SerializeField] private AudioSource audioSource;
+    [SerializeField] private LayerMask hitMask;
+    
     public FirearmData data;
     
+    private float nextFireTimer;
     public float bullets;
     
+    [SerializeField] private Animator animator;
+    [SerializeField] private AudioClip shootSound;
+    
     public bool isEquipped;     // for animator
-    private bool pendingFire;   // to sync with camera direction
-    private float nextFireTimer;
     
     public void Start()
     {
-        mainCamera = Camera.main;
-        if (mainCamera == null)
-            Debug.LogWarning("No main camera");
-        
         if (!animator)
             animator = GetComponent<Animator>();
         
@@ -31,45 +30,50 @@ public class FirearmController : MonoBehaviour
     }
     
     // called from input callback
-    public void Fire()
-    {
-        pendingFire = true;
-    }
-
-    // called from late update so the muzzle position is more stable
-    public void FirePending()
+    public void Fire(Vector3 origin, Vector3 direction)
     {
         if (Time.time < nextFireTimer) return;
-        
-        if (data.bullets <= 0f)
-        {
-            GameUI.Instance.OnNoBullets();
-            return;
-        }
+        if (bullets <= 0f) return;
 
         nextFireTimer = Time.time + data.fireRate;
         bullets--;
-        GameUI.Instance.UpdateBulletsUI();
+
         animator.SetTrigger("shoot");
 
-        // todo bullet effect?
-        // Instantiate(projectilePrefab, firePoint.position, firePoint.rotation);
+        RaycastHit hit;
+        
+        bool hasHit = Physics.Raycast(origin, direction, out hit, data.fireRange, hitMask);
+        Vector3 endPoint = hasHit ? hit.point : origin + direction * data.fireRange;
+
+        // Debug.Log(hasHit ? $"Hit: {hit.collider.name}" : "Miss");
+        
+        // damage
+        if (hasHit && hit.collider.TryGetComponent<IDamageable>(out var dmg))
+        {
+            dmg.TakeDamage(data.damage);
+            GetComponentInParent<EnemyCombatAI>()?.RegisterGaveDamage();
+
+        }
+
+        // tracer
+        if (tracerPrefab)
+        {
+            Vector3 tracerDirection = (endPoint - firePoint.position).normalized;
+            Vector3 tracerEndPoint = firePoint.position + tracerDirection * Vector3.Distance(firePoint.position, endPoint);
+            
+            var tracer = Instantiate(tracerPrefab, firePoint.position, firePoint.rotation);
+            tracer.GetComponent<ProjectileVisual>().Init(tracerEndPoint);
+        }
+
+        // VFX + SFX
+        if (muzzleFlash) muzzleFlash.Play();
+        if (audioSource && shootSound) audioSource.PlayOneShot(shootSound);
     }
 
     void LateUpdate()
     {
-        if (!isEquipped || !mainCamera)
+        if (!isEquipped)
             return;
-        
-        // visual alignment of gun
-        transform.rotation = mainCamera.transform.rotation;
-
-        // fire the pending fire
-        if (pendingFire)
-        {
-            FirePending();
-            pendingFire = false;
-        }
         
         // animate inventory weapons
         animator.SetBool("isEquipped", isEquipped);

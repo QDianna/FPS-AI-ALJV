@@ -10,5 +10,5 @@ public class FirearmData : ItemData
     public float damage;
     public int bullets;
     public float fireRate;  // cooldown between shots
-
+    public float fireRange;
 }
