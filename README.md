@@ -4,18 +4,13 @@
 
 Proiectul își propune dezvoltarea și analiza unui agent AI capabil să simuleze comportamentul unui inamic într-un joc FPS, cu accent pe luarea deciziilor și comportamentul în luptă.
 
-Prin acest proiect, voi implementa un sistem hibrid bazat pe **Behavior Trees** pentru decizii de nivel înalt și **Reinforcement Learning (algoritmul PPO)** pentru optimizarea comportamentului de combat (mișcare și tragere).
+Prin acest proiect, voi implementa un sistem hibrid bazat pe **Behavior Trees** pentru decizii de nivel înalt și **Reinforcement Learnin** pentru optimizarea comportamentului de combat (mișcare și tragere).
 
 ## Motivație
 
 Jocurile FPS reprezintă un mediu complex în care agenții AI trebuie să ia decizii rapide în condiții dinamice și incerte.
 
 Am ales acest tip de joc deoarece dețin deja un prototip funcțional 3D, în care inamicii au comportamente simple bazate pe reguli (deplasare către jucător și tragere în funcție de distanță). Acest lucru oferă o bază practică pentru extinderea cu tehnici avansate de inteligență artificială.
-
-Algoritmii aleși sunt:
-
-- **Behavior Trees**, deoarece sunt utilizați frecvent în industrie pentru modelarea comportamentelor complexe și modulare;
-- **Proximal Policy Optimization (PPO)**, deoarece este un algoritm de reinforcement learning stabil și eficient pentru probleme de control continuu și decizii în timp real.
 
 ## Scopul proiectului
 
@@ -24,7 +19,7 @@ Scopul acestui proiect este dezvoltarea și evaluarea unui agent AI pentru un jo
 ### Obiectivele principale
 
 1. Implementarea unui sistem de decizie bazat pe Behavior Trees;
-2. Dezvoltarea unui agent de combat utilizând algoritmul PPO;
+2. Dezvoltarea unui agent de combat utilizând Reinforced Learning;
 3. Compararea performanței între AI-ul bazat pe reguli și AI-ul îmbunătățit;
 4. Analiza impactului diferitelor funcții de recompensă asupra comportamentului agentului.
 
@@ -61,11 +56,9 @@ Deciziile vor fi luate pe baza:
 - vizibilității (*line-of-sight*);
 - stării agentului (HP).
 
-#### 2. Reinforcement Learning – PPO (combat behavior)
+#### 2. Reinforcement Learning (combat behavior)
 
-Algoritmul PPO va fi utilizat pentru a învăța comportamente de luptă eficiente.
-
-**Model:** Actor-Critic
+Algoritmul va fi utilizat pentru a învăța comportamente de luptă eficiente.
 
 ##### Intrări (stare)
 - poziția relativă a player-ului;
@@ -100,26 +93,7 @@ Performanța agentului va fi evaluată folosind următorii indicatori:
 Rezultatele vor fi comparate între:
 
 - AI bazat pe reguli (versiunea inițială);
-- AI hibrid (Behavior Tree + PPO).
-
-### Vizualizare și analiză
-
-Datele vor fi colectate în timpul simulărilor și analizate folosind:
-
-- grafice ale reward-ului în funcție de episoade;
-- statistici agregate (medii, deviații standard);
-- înregistrări video ale comportamentului agentului;
-- comparații între diferite configurații ale funcției de recompensă.
-
-## Rezultate așteptate
-
-Este de așteptat ca agentul bazat pe PPO să învețe comportamente mai eficiente decât cel bazat pe reguli, precum:
-
-- mișcare laterală pentru evitarea gloanțelor;
-- alegerea momentului optim pentru tragere;
-- menținerea unei distanțe avantajoase față de adversar.
-
-De asemenea, se așteaptă o îmbunătățire a performanței în termeni de precizie și supraviețuire.
+- AI hibrid 
 
 ## Concluzie
 
