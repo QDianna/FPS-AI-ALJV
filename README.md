@@ -1,102 +1,187 @@
-# Proiect ALJV - FPS Enemy AI
+# FPS Enemy AI – ALJV Project
 
-## Introducere
+## Overview
 
-Proiectul își propune dezvoltarea și analiza unui agent AI capabil să simuleze comportamentul unui inamic într-un joc FPS, cu accent pe luarea deciziilor și comportamentul în luptă.
+This project focuses on designing and implementing an intelligent enemy agent for a First-Person Shooter (FPS) game, with an emphasis on decision-making and adaptive combat behavior.
 
-Prin acest proiect, voi implementa un sistem hibrid bazat pe **Behavior Trees** pentru decizii de nivel înalt și **Reinforcement Learnin** pentru optimizarea comportamentului de combat (mișcare și tragere).
+The approach is **hybrid**:
+- **Behavior Tree (BT)** for high-level decision making
+- **Reinforcement Learning (RL)** for low-level combat optimization
 
-## Motivație
+The goal is to move from rule-based AI to a system capable of adapting its combat strategy based on interaction with the player.
 
-Jocurile FPS reprezintă un mediu complex în care agenții AI trebuie să ia decizii rapide în condiții dinamice și incerte.
 
-Am ales acest tip de joc deoarece dețin deja un prototip funcțional 3D, în care inamicii au comportamente simple bazate pe reguli (deplasare către jucător și tragere în funcție de distanță). Acest lucru oferă o bază practică pentru extinderea cu tehnici avansate de inteligență artificială.
 
-## Scopul proiectului
+## Motivation
 
-Scopul acestui proiect este dezvoltarea și evaluarea unui agent AI pentru un joc FPS, utilizând o combinație între metode clasice și metode de învățare automată.
+FPS environments are dynamic, partially observable, and require fast decision-making under uncertainty.
 
-### Obiectivele principale
+The project builds on an existing Unity prototype where:
+- the player can move, aim, and shoot
+- enemies can navigate using NavMesh and shoot using raycasting
+- current enemy behavior is rule-based
 
-1. Implementarea unui sistem de decizie bazat pe Behavior Trees;
-2. Dezvoltarea unui agent de combat utilizând Reinforced Learning;
-3. Compararea performanței între AI-ul bazat pe reguli și AI-ul îmbunătățit;
-4. Analiza impactului diferitelor funcții de recompensă asupra comportamentului agentului.
+This provides a controlled environment to integrate and evaluate learning-based AI.
 
-## Metodologie
 
-### Configurarea mediului de testare
 
-Mediul de testare va fi un joc FPS 3D dezvoltat în Unity, care include:
+## Project Goals
 
-- un player controlat manual;
-- unul sau mai mulți agenți inamici;
-- sistem de deplasare bazat pe NavMesh;
-- sistem de tragere bazat pe raycasting;
-- detecție a jucătorului în funcție de distanță și vizibilitate.
+The main objective is to design an AI agent that improves its combat behavior over time.
 
-Pentru experimente, vor fi definite scenarii controlate (ex: duel 1 vs 1 într-o hartă simplificată).
+### Objectives
 
-### Implementare AI
+1. Implement a **Behavior Tree** for macro-level decisions
+2. Integrate **Reinforcement Learning (Q-learning)** for combat behavior
+3. Replace static rule-based combat with adaptive decision-making
+4. Analyze how reward design influences learned behavior
+5. Compare baseline AI vs hybrid AI performance
 
-Agentul AI va fi structurat pe două niveluri:
 
-#### 1. Behavior Tree (decizie high-level)
 
-Behavior Tree-ul va controla stările principale ale agentului:
+## System Architecture
 
-- **Patrol** (când nu detectează player-ul);
-- **Chase** (când player-ul este detectat);
-- **Attack** (când player-ul este în raza de tragere);
-- **Retreat** (când HP este scăzut).
+The AI is structured on two decision layers:
 
-Deciziile vor fi luate pe baza:
+### 1. Behavior Tree (High-Level Control)
 
-- distanței față de player;
-- vizibilității (*line-of-sight*);
-- stării agentului (HP).
+The Behavior Tree manages global agent states:
 
-#### 2. Reinforcement Learning (combat behavior)
+- **Patrol** – no player detected
+- **Chase** – player detected but outside attack range
+- **Search** – lost line-of-sight to player
+- **Attack** – player in range and visible
+- **Retreat** – low health
 
-Algoritmul va fi utilizat pentru a învăța comportamente de luptă eficiente.
+Transitions are based on:
+- distance to player
+- line-of-sight (LOS)
+- agent health
 
-##### Intrări (stare)
-- poziția relativă a player-ului;
-- distanța până la player;
-- direcția de deplasare a player-ului;
-- HP agent;
-- indicator de vizibilitate (*line-of-sight*).
+This layer is deterministic and does not use learning.
 
-##### Acțiuni
-- deplasare laterală (stânga/dreapta);
-- deplasare înainte/înapoi;
-- tragere (*shoot / no shoot*);
-- ajustare direcție de țintire.
 
-##### Funcția de recompensă
-- +1 pentru fiecare lovitură (*hit*);
-- +5 pentru eliminarea player-ului;
-- -1 pentru damage primit;
-- -5 pentru moarte;
-- penalizare mică pentru inactivitate.
 
-### Performanțe
+### 2. Reinforcement Learning (Combat Layer)
 
-Performanța agentului va fi evaluată folosind următorii indicatori:
+Inside the **Attack** state, the agent uses RL to select actions.
 
-- rata de lovire (*hit accuracy*);
-- rata de eliminare (*kill rate*);
-- timpul mediu până la eliminarea adversarului;
-- durata de supraviețuire;
-- stabilitatea comportamentului (variația între episoade).
+The learning algorithm used is:
+- **Q-learning (tabular, discrete state space)**
 
-Rezultatele vor fi comparate între:
 
-- AI bazat pe reguli (versiunea inițială);
-- AI hibrid 
 
-## Concluzie
+## Reinforcement Learning Design
 
-Acest proiect va demonstra modul în care tehnicile moderne de inteligență artificială, precum Behavior Trees și Reinforcement Learning, pot fi integrate pentru a obține agenți credibili și eficienți într-un joc FPS.
+### State Representation (discrete)
 
-Rezultatele vor evidenția avantajele metodelor de învățare automată față de abordările bazate exclusiv pe reguli și vor oferi o bază pentru dezvoltări ulterioare în domeniul AI pentru jocuri.
+The continuous game state is discretized into:
+
+- distance: `close / mid / far`
+- health: `low / high`
+- player visible: `true / false`
+- recent damage:
+  - `tookDamage`
+  - `gaveDamage`
+
+
+
+### Action Space
+
+The agent selects from predefined combat actions:
+
+- `ShootStanding`
+- `StrafeLeftShoot`
+- `StrafeRightShoot`
+- `PushForwardShoot`
+- `BackOffShoot`
+- `HoldPosition`
+
+Each action is executed for a short fixed duration.
+
+
+
+### Reward Function
+
+The reward is designed to encourage effective combat behavior:
+
+- +10 → successful hit
+- -10 → damage received
+- -1  → idle / ineffective action
+- + small bonus → maintaining optimal distance (optional)
+
+
+
+### Learning Policy
+
+The agent uses an **ε-greedy policy**:
+
+- with probability ε → explore (random action)
+- otherwise → exploit (best known action)
+
+
+
+### Q-Update Rule
+
+The Q-values are updated using the standard Q-learning formula:
+
+Q(s, a) = Q(s, a) + α * (reward + γ * max(Q(s', a')) - Q(s, a))
+
+
+
+## Environment Setup
+
+The environment is implemented in **Unity** and includes:
+
+- player controller (movement, aiming, shooting)
+- enemy agents
+- NavMesh navigation
+- raycast-based shooting system
+- visibility detection (line-of-sight)
+
+Experiments are conducted in controlled scenarios (e.g. 1v1 combat in a simple map).
+
+
+
+## Evaluation Metrics
+
+The AI performance is evaluated using:
+
+- hit accuracy
+- damage dealt vs damage received
+- survival time
+- kill rate
+- behavioral consistency
+
+Comparison is made between:
+- baseline rule-based AI
+- hybrid BT + RL agent
+
+
+
+## Development Roadmap
+
+### Milestone 3
+- integrate Q-learning into Attack behavior
+- basic state/action/reward implementation
+- demonstrate learning loop
+
+### Milestone 4
+- refine reward function
+- improve state representation
+- analyze behavior patterns
+
+### Final Stage
+- optimize policy
+- optional: extend to function approximation (e.g. neural networks)
+- document experimental results
+
+
+
+## Conclusion
+
+This project demonstrates how combining classical AI techniques (Behavior Trees) with learning-based methods (Reinforcement Learning) can produce more adaptive and realistic enemy behavior in FPS games.
+
+The hybrid approach allows:
+- structured decision-making at a strategic level
+- adaptive optimization at a tactical level
