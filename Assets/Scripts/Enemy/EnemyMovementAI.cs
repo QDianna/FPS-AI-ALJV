@@ -1,22 +1,130 @@
 using UnityEngine;
+using UnityEngine.AI;
 using System.Collections;
 
 public class EnemyMovementAI : MonoBehaviour
 {
-    [SerializeField] private float movement = 3f;
+    [Header("Movement")]
+    [SerializeField] private float moveSpeed = 3f;
     [SerializeField] private float obstacleCheckDistance = 1f;
 
     private Transform player;
+    private NavMeshAgent agent;
 
     private Coroutine currentMoveRoutine;
     private bool isMoving;
+
+    private enum MovementMode
+    {
+        NavMesh,
+        Manual
+    }
+
+    private MovementMode currentMode;
+
+    void Awake()
+    {
+        agent = GetComponent<NavMeshAgent>();
+    }
 
     void Start()
     {
         player = PlayerController.Instance.transform;
     }
 
-    // ================= CORE =================
+    // ------------------------------ NAVMESH ------------------------------ //
+
+    public void GoTo(Vector3 position)
+    {
+        SwitchToNavMesh();
+
+        agent.isStopped = false;
+        agent.SetDestination(position);
+    }
+
+    public void StopNavMesh()
+    {
+        if (agent != null)
+            agent.isStopped = true;
+    }
+
+    // ------------------------------ COMBAT MOVEMENT ------------------------------ //
+
+    public void StrafeLeft(float duration)
+    {
+        StartManualMove(-GetRight(), duration);
+    }
+
+    public void StrafeRight(float duration)
+    {
+        StartManualMove(GetRight(), duration);
+    }
+
+    public void BackOff(float duration)
+    {
+        Vector3 dir = (transform.position - player.position).normalized;
+        StartManualMove(dir, duration);
+    }
+    
+    public void PushForward(float duration)
+    {
+        Vector3 dir = (player.position - transform.position).normalized;
+        StartManualMove(dir, duration);
+    }
+
+    public void MaintainDistance(float desiredMin, float desiredMax, float duration)
+    {
+        Vector3 toPlayer = (player.position - transform.position);
+        float dist = toPlayer.magnitude;
+
+        Vector3 dir = Vector3.zero;
+
+        if (dist < desiredMin)
+            dir = -toPlayer.normalized; // prea aproape → înapoi
+        else if (dist > desiredMax)
+            dir = toPlayer.normalized;  // prea departe → înainte
+        else
+            return; // deja în range bun → nu mișcă
+
+        StartManualMove(dir, duration);
+    }
+    
+    public void DodgeLeft(float duration)
+    {
+        StartManualMove(-GetRight(), duration * 0.3f); // mai scurt decât strafe
+    }
+
+    public void DodgeRight(float duration)
+    {
+        StartManualMove(GetRight(), duration * 0.3f);
+    }
+    
+    public void HoldPosition()
+    {
+        StopAllMovement();
+    }
+    
+    // ------------------------------ MODE SWITCH ------------------------------ //
+
+    private void SwitchToManual()
+    {
+        currentMode = MovementMode.Manual;
+
+        if (agent != null)
+        {
+            agent.isStopped = true;
+            agent.ResetPath();
+        }
+    }
+
+    private void SwitchToNavMesh()
+    {
+        currentMode = MovementMode.NavMesh;
+
+        StopManualMovement();
+    }
+
+    // ------------------------------ CORE ------------------------------ //
 
     public bool CanMove(Vector3 dir, float checkDistance)
     {
@@ -24,43 +132,27 @@ public class EnemyMovementAI : MonoBehaviour
         return !Physics.Raycast(origin, dir, checkDistance);
     }
 
-    private Vector3 GetRight()
+    public Vector3 GetRight()
     {
         Vector3 toPlayer = (player.position - transform.position).normalized;
         return Vector3.Cross(Vector3.up, toPlayer);
     }
-
-    // ================= PUBLIC ACTIONS =================
-
-    public void StrafeLeft(float duration)
+    
+    public void FaceDirection(Vector3 dir)
     {
-        StartMoveRoutine(-GetRight(), duration);
+        dir.y = 0f;
+        if (dir.sqrMagnitude < 0.01f) return;
+
+        Quaternion rot = Quaternion.LookRotation(dir);
+        transform.rotation = Quaternion.Slerp(transform.rotation, rot, 10f * Time.deltaTime);
     }
 
-    public void StrafeRight(float duration)
+    // ------------------------------ MANUAL ------------------------------ //
+
+    private void StartManualMove(Vector3 dir, float duration)
     {
-        StartMoveRoutine(GetRight(), duration);
-    }
+        SwitchToManual();
 
-    public void BackOff(float duration)
-    {
-        Vector3 dir = (transform.position - player.position).normalized;
-        StartMoveRoutine(dir, duration);
-    }
-
-    public void StopMovement()
-    {
-        if (currentMoveRoutine != null)
-            StopCoroutine(currentMoveRoutine);
-
-        isMoving = false;
-    }
-
-    // ================= INTERNAL =================
-
-    private void StartMoveRoutine(Vector3 dir, float duration)
-    {
-        // oprește orice mișcare anterioară
         if (currentMoveRoutine != null)
             StopCoroutine(currentMoveRoutine);
 
@@ -73,7 +165,6 @@ public class EnemyMovementAI : MonoBehaviour
 
         float timer = 0f;
 
-        // normalize doar o dată
         dir.y = 0f;
         dir.Normalize();
 
@@ -81,7 +172,8 @@ public class EnemyMovementAI : MonoBehaviour
         {
             if (CanMove(dir, obstacleCheckDistance))
             {
-                transform.Translate(dir * movement * Time.deltaTime, Space.World);
+                transform.Translate(dir * moveSpeed * Time.deltaTime, Space.World);
+                // FaceDirection(dir);
             }
 
             timer += Time.deltaTime;
@@ -91,10 +183,38 @@ public class EnemyMovementAI : MonoBehaviour
         isMoving = false;
     }
 
-    // ================= DEBUG / INFO =================
+    public void StopManualMovement()
+    {
+        if (currentMoveRoutine != null)
+        {
+            StopCoroutine(currentMoveRoutine);
+            currentMoveRoutine = null;
+        }
+
+        isMoving = false;
+    }
+
+    // ------------------------------ GLOBAL STOP ------------------------------ //
+
+    public void StopAllMovement()
+    {
+        StopManualMovement();
+        StopNavMesh();
+    }
+
+    // ------------------------------ INFO ------------------------------ //
 
     public bool IsMoving()
     {
         return isMoving;
     }
+    
+    public bool HasReachedDestination(float tolerance = 0.5f)
+    {
+        if (agent == null || !agent.hasPath)
+            return true;
+
+        return agent.remainingDistance <= tolerance;
+    }
 }
+

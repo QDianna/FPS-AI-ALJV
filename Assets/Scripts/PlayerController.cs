@@ -8,7 +8,7 @@ public class PlayerController : MonoBehaviour, IDamageable
     [Header("References")]
     public PlayerWeaponsController weaponsController;
     [SerializeField] private CharacterController characterController;
-    [SerializeField] private WeaponAlign weaponAlign;
+    [SerializeField] private FirearmAimer firearmAimer;
     [SerializeField] private Transform weaponHolder;
     
     [SerializeField] private Transform cameraTransform;
@@ -54,7 +54,7 @@ public class PlayerController : MonoBehaviour, IDamageable
         
         characterController = GetComponent<CharacterController>();
         weaponsController = GetComponent<PlayerWeaponsController>();
-        weaponAlign = GetComponent<WeaponAlign>();
+        firearmAimer = GetComponent<FirearmAimer>();
     }
     
     void Start()
@@ -85,7 +85,7 @@ public class PlayerController : MonoBehaviour, IDamageable
     
     void LateUpdate()
     {
-        weaponAlign.SetAimDirection(cameraTransform.forward);
+        firearmAimer.SetAimDirection(cameraTransform.forward);
     }
     
     // ---------------------- INPUT SYSTEM CALLBACKS ---------------------- //

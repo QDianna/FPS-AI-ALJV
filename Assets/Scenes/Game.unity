@@ -898,7 +898,7 @@ Transform:
   m_GameObject: {fileID: 41868158}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: 1, z: -0, w: 0}
-  m_LocalPosition: {x: 0, y: 4.97, z: 5.11}
+  m_LocalPosition: {x: 2.59, y: 5, z: 5.21}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1324,6 +1324,50 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 4887460767432162760, guid: 30c819560420f824da028f3502f83728, type: 3}
   m_PrefabInstance: {fileID: 63447876}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &69454961 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 730383208140440394, guid: d30cce042fe968d48918f9fcf46f7ba9, type: 3}
+  m_PrefabInstance: {fileID: 1982499403952249432}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 41d740f756cc1d349b64588d2f1caa45, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WeaponAlign
+--- !u!114 &69454962 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 6734381547781259581, guid: d30cce042fe968d48918f9fcf46f7ba9, type: 3}
+  m_PrefabInstance: {fileID: 1982499403952249432}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8a7a3d001254382449af854748a98ee3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyHealth
+--- !u!114 &69454963 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 2698775143952271886, guid: d30cce042fe968d48918f9fcf46f7ba9, type: 3}
+  m_PrefabInstance: {fileID: 1982499403952249432}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0621a6befaa2f9349a6305a9e258ef1d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyMovementAI
+--- !u!114 &69454964 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 8876609657800873048, guid: d30cce042fe968d48918f9fcf46f7ba9, type: 3}
+  m_PrefabInstance: {fileID: 1982499403952249432}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1879f1d07c8938542b97397831c46b39, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TurretController
 --- !u!1001 &72252512
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -3161,7 +3205,7 @@ Transform:
   m_GameObject: {fileID: 186636351}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 1, z: 0, w: 0}
-  m_LocalPosition: {x: 0, y: 4.97, z: 5.11}
+  m_LocalPosition: {x: 2.59, y: 5, z: 5.21}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -11026,7 +11070,7 @@ Transform:
   m_GameObject: {fileID: 772644805}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: 1, z: -0, w: 0}
-  m_LocalPosition: {x: -0.5, y: 6.37, z: 11.110001}
+  m_LocalPosition: {x: 2.09, y: 6.4, z: 11.21}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -14301,7 +14345,7 @@ Transform:
   m_GameObject: {fileID: 1036463621}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 8, y: -1, z: 13}
+  m_LocalPosition: {x: 9, y: 0, z: -9}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -21876,7 +21920,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8557031620345545799, guid: 6af37491f6f5466479659bf4927902e3, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -2.724
+      value: 4.94
       objectReference: {fileID: 0}
     - target: {fileID: 8557031620345545799, guid: 6af37491f6f5466479659bf4927902e3, type: 3}
       propertyPath: m_LocalPosition.y
@@ -23315,7 +23359,7 @@ Transform:
   m_GameObject: {fileID: 1818799132}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.42981, y: 2, z: -12.64185}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -24082,7 +24126,7 @@ Transform:
   m_GameObject: {fileID: 1875541368}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: -1, z: 4}
+  m_LocalPosition: {x: -9, y: 0, z: -9}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -27831,17 +27875,21 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 6784512485513178154}
     - target: {fileID: 1162340858265279084, guid: d30cce042fe968d48918f9fcf46f7ba9, type: 3}
+      propertyPath: movement
+      value: 
+      objectReference: {fileID: 69454963}
+    - target: {fileID: 1162340858265279084, guid: d30cce042fe968d48918f9fcf46f7ba9, type: 3}
+      propertyPath: combatSystem
+      value: 
+      objectReference: {fileID: 69454964}
+    - target: {fileID: 1162340858265279084, guid: d30cce042fe968d48918f9fcf46f7ba9, type: 3}
+      propertyPath: healthSystem
+      value: 
+      objectReference: {fileID: 69454962}
+    - target: {fileID: 1162340858265279084, guid: d30cce042fe968d48918f9fcf46f7ba9, type: 3}
       propertyPath: retreatPoint
       value: 
       objectReference: {fileID: 922859618}
-    - target: {fileID: 1162340858265279084, guid: d30cce042fe968d48918f9fcf46f7ba9, type: 3}
-      propertyPath: actionDuration
-      value: 0.4
-      objectReference: {fileID: 0}
-    - target: {fileID: 1162340858265279084, guid: d30cce042fe968d48918f9fcf46f7ba9, type: 3}
-      propertyPath: decisionInterval
-      value: 0.5
-      objectReference: {fileID: 0}
     - target: {fileID: 1162340858265279084, guid: d30cce042fe968d48918f9fcf46f7ba9, type: 3}
       propertyPath: 'points.Array.data[0]'
       value: 
@@ -27914,6 +27962,22 @@ PrefabInstance:
       propertyPath: m_Name
       value: Enemy 1
       objectReference: {fileID: 0}
+    - target: {fileID: 8876609657800873048, guid: d30cce042fe968d48918f9fcf46f7ba9, type: 3}
+      propertyPath: movement
+      value: 
+      objectReference: {fileID: 69454963}
+    - target: {fileID: 8876609657800873048, guid: d30cce042fe968d48918f9fcf46f7ba9, type: 3}
+      propertyPath: useDebug
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8876609657800873048, guid: d30cce042fe968d48918f9fcf46f7ba9, type: 3}
+      propertyPath: firearmAimer
+      value: 
+      objectReference: {fileID: 69454961}
+    - target: {fileID: 8876609657800873048, guid: d30cce042fe968d48918f9fcf46f7ba9, type: 3}
+      propertyPath: healthSystem
+      value: 
+      objectReference: {fileID: 69454962}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -27933,15 +27997,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1366593478845869460, guid: 1e95af4d85458a8479f78e24affff5a0, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0
+      value: 2.59
       objectReference: {fileID: 0}
     - target: {fileID: 1366593478845869460, guid: 1e95af4d85458a8479f78e24affff5a0, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 4.47
+      value: 4.5
       objectReference: {fileID: 0}
     - target: {fileID: 1366593478845869460, guid: 1e95af4d85458a8479f78e24affff5a0, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 5.31
+      value: 5.41
       objectReference: {fileID: 0}
     - target: {fileID: 1366593478845869460, guid: 1e95af4d85458a8479f78e24affff5a0, type: 3}
       propertyPath: m_LocalRotation.w

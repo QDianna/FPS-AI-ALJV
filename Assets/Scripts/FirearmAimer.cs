@@ -1,9 +1,9 @@
 using UnityEngine;
 
-public class WeaponAlign : MonoBehaviour
+public class FirearmAimer : MonoBehaviour
 {
     [Header("References")]
-    [SerializeField] private Transform weaponPivot; // pivotul tău
+    [SerializeField] private Transform weaponPivot;
 
     [Header("Settings")]
     [SerializeField] private float rotationSpeed = 360f;
@@ -12,7 +12,6 @@ public class WeaponAlign : MonoBehaviour
     private bool hasTarget;
     private Vector3 targetDirection;
 
-    // chemat din exterior (player sau enemy)
     public void SetAimDirection(Vector3 worldDirection)
     {
         if (worldDirection.sqrMagnitude < 0.001f)

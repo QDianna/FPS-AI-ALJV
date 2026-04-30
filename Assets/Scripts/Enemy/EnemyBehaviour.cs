@@ -1,11 +1,11 @@
 using UnityEngine;
-using UnityEngine.AI;
 
 enum State
 {
     Patrol,
     Chase,
     Attack,
+    Search,
     Retreat
 }
 
@@ -16,58 +16,84 @@ public class EnemyBehaviour : MonoBehaviour
     [SerializeField] private Transform[] points;
     [SerializeField] private Transform retreatPoint;
 
-    private NavMeshAgent agent;
-    private EnemyHealth healthSystem;
-    private EnemyMovementAI movementSystem;
-    private EnemyCombatAI combatSystem;
+    [SerializeField] private EnemyMovementAI movement;
+    [SerializeField] private EnemyHealth healthSystem;
+    [SerializeField] private EnemyCombatAI combatSystem;
 
     [Header("Parameters")]
     [SerializeField] private float attackRange = 10f;
-    [SerializeField] private float waypointTolerance = 0.1f;
+    [SerializeField] private float waypointTolerance = 0.5f;
 
-    [Header("Decision")]
-    [SerializeField] private float decisionInterval = 0.5f;
-    [SerializeField] private float actionDuration = 0.4f;
-
-    private float decisionTimer;
-
+    private Vector3 lastKnownPlayerPos;
+    private bool hadLOS;
+    private float searchTimer;
+    
+    [SerializeField] private float searchDuration = 3f;
+    
     private State currentState;
+    private State lastState;  // DEBUG
     private int index;
-    private bool isChasing;
-
-    private AttackActionType currentAction = AttackActionType.None;
 
     void Awake()
     {
-        agent = GetComponent<NavMeshAgent>();
         healthSystem = GetComponent<EnemyHealth>();
-        movementSystem = GetComponent<EnemyMovementAI>();
         combatSystem = GetComponent<EnemyCombatAI>();
     }
 
     void Update()
     {
         DecideState();
+
+        // debug
+        if (currentState != lastState)
+        {
+            Debug.Log("State: " + currentState);
+            lastState = currentState;
+        }
+        //
+        
         ExecuteState();
     }
 
-    // ================= STATE =================
+    // ------------------------------ STATE ------------------------------ //
 
     void DecideState()
     {
         float dist = Vector3.Distance(transform.position, player.position);
+        bool hasLOS = combatSystem.HasLineOfSight();
 
+        // dacă vede playerul → update last position
+        if (hasLOS)
+        {
+            lastKnownPlayerPos = player.position;
+            hadLOS = true;
+        }
+        
         if (healthSystem.health <= 20f)
+        {
             currentState = State.Retreat;
+            return;
+        }
 
-        else if (combatSystem.HasLineOfSight() && dist > attackRange)
+        if (hasLOS && dist > attackRange)
+        {
             currentState = State.Chase;
+            return;
+        }
 
-        else if (combatSystem.HasLineOfSight() && dist <= attackRange)
+        if (hasLOS && dist <= attackRange)
+        {
             currentState = State.Attack;
+            return;
+        }
 
-        else
-            currentState = State.Patrol;
+        if (!hasLOS && hadLOS)
+        {
+            currentState = State.Search;
+            return;
+        }
+
+        currentState = State.Patrol;
     }
 
     void ExecuteState()
@@ -83,7 +109,12 @@ public class EnemyBehaviour : MonoBehaviour
                 StopCombat();
                 ChasePlayer();
                 break;
-
+            
+            case State.Search:
+                StopCombat();
+                Search();
+                break;
+            
             case State.Attack:
                 Attack();
                 break;
@@ -95,165 +126,70 @@ public class EnemyBehaviour : MonoBehaviour
         }
     }
 
-    // ================= PATROL =================
+    // ------------------------------ PATROL ------------------------------ //
 
     private void Patrol()
     {
-        agent.isStopped = false;
-
         if (points.Length == 0)
             return;
 
-        if (isChasing)
-        {
-            isChasing = false;
-            agent.SetDestination(points[index].position);
-        }
-
-        if (!agent.pathPending && agent.remainingDistance <= waypointTolerance)
+        if (movement.HasReachedDestination(waypointTolerance))
         {
             index = (index + 1) % points.Length;
-            agent.SetDestination(points[index].position);
+            movement.GoTo(points[index].position);
         }
     }
 
-    // ================= CHASE =================
+    // ------------------------------ CHASE ------------------------------ //
 
     private void ChasePlayer()
     {
-        isChasing = true;
-        agent.isStopped = false;
-
         Vector3 dir = (transform.position - player.position).normalized;
         Vector3 targetPos = player.position + dir * 3f;
 
-        agent.SetDestination(targetPos);
+        movement.GoTo(targetPos);
     }
 
-    // ================= RETREAT =================
+    // ------------------------------ RETREAT ------------------------------ //
 
     private void Retreat()
     {
-        agent.isStopped = false;
-        agent.SetDestination(retreatPoint.position);
+        movement.GoTo(retreatPoint.position);
     }
 
-    // ================= ATTACK =================
+    // ------------------------------ ATTACK ------------------------------ //
 
     private void Attack()
     {
-        agent.isStopped = true;
-
-        decisionTimer -= Time.deltaTime;
-
-        // nu lua decizie nouă dacă:
-        // - încă e în acțiune
-        // - nu a trecut intervalul
-        if (movementSystem.IsMoving() || decisionTimer > 0f)
-            return;
-
-        decisionTimer = decisionInterval;
-
-        CombatState state = BuildCombatState();
-        AttackActionType action = DecideAction(state);
-
-        if (currentAction != action)
-            Debug.Log("** Attack Action ** " + action);
-
-        currentAction = action;
-
-        ExecuteAction(action);
+        combatSystem.TickCombat();
     }
-
-    // ================= DECISION =================
-
-    private CombatState BuildCombatState()
+    
+    // ------------------------------ SEARCH ------------------------------ //
+    private void Search()
     {
-        float dist = Vector3.Distance(transform.position, player.position);
+        movement.GoTo(lastKnownPlayerPos);
 
-        return new CombatState
+        if (movement.HasReachedDestination(waypointTolerance))
         {
-            distanceToPlayer = dist,
-            health = healthSystem.health,
-            playerVisible = combatSystem.HasLineOfSight(),
-            gaveDamage = combatSystem.gaveDamageTimer > 0,
-            tookDamage = combatSystem.tookDamageTimer > 0,
-        };
-    }
+            // transform.Rotate(0f, 120f * Time.deltaTime, 0f);
 
-    private AttackActionType DecideAction(CombatState state)
-    {
-        // prea aproape
-        if (state.distanceToPlayer < 4f)
-            return AttackActionType.BackOff;
+            searchTimer += Time.deltaTime;
 
-        // reacție la damage primit
-        if (state.tookDamage)
-        {
-            combatSystem.tookDamageTimer = 0f;
-
-            return (Random.value > 0.5f)
-                ? AttackActionType.StrafeRightShoot
-                : AttackActionType.StrafeLeftShoot;
+            if (searchTimer >= searchDuration)
+            {
+                hadLOS = false;
+                searchTimer = 0f;
+            }
         }
-
-        // dacă lovește constant → stă și trage
-        if (state.gaveDamage)
+        else
         {
-            combatSystem.gaveDamageTimer = 0f;
-            return AttackActionType.ShootStanding;
-        }
-
-        // default
-        return AttackActionType.ShootStanding;
-    }
-
-    // ================= ACTION EXECUTION =================
-
-    private void ExecuteAction(AttackActionType action)
-    {
-         // StopCombat(); // reset înainte de noua acțiune
-
-        switch (action)
-        {
-            case AttackActionType.ShootStanding:
-                combatSystem.StartShooting(player.position);
-                break;
-
-            case AttackActionType.StrafeLeftShoot:
-                movementSystem.StrafeLeft(actionDuration);
-                combatSystem.StartShooting(player.position);
-                break;
-
-            case AttackActionType.StrafeRightShoot:
-                movementSystem.StrafeRight(actionDuration);
-                combatSystem.StartShooting(player.position);
-                break;
-
-            case AttackActionType.StrafeLeft:
-                movementSystem.StrafeLeft(actionDuration);
-                break;
-
-            case AttackActionType.StrafeRight:
-                movementSystem.StrafeRight(actionDuration);
-                break;
-
-            case AttackActionType.BackOff:
-                movementSystem.BackOff(actionDuration);
-                break;
+            searchTimer = 0f;
         }
     }
 
     private void StopCombat()
     {
-        combatSystem.StopShooting();
-    }
-
-    // ================= DEBUG =================
-
-    void OnDrawGizmosSelected()
-    {
-        Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(transform.position, attackRange);
+        combatSystem.StopAllCombat();
     }
 }
+
