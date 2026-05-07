@@ -1,13 +1,15 @@
 using UnityEngine;
 
-enum State
+public enum State
 {
     Patrol,
     Chase,
-    Attack,
     Search,
+    Attack,
+    HitReact,
     Retreat
 }
+
 
 public class EnemyBehaviour : MonoBehaviour
 {
@@ -19,177 +21,270 @@ public class EnemyBehaviour : MonoBehaviour
     [SerializeField] private EnemyMovementAI movement;
     [SerializeField] private EnemyHealth healthSystem;
     [SerializeField] private EnemyCombatAI combatSystem;
-
+    
     [Header("Parameters")]
     [SerializeField] private float attackRange = 10f;
     [SerializeField] private float waypointTolerance = 0.5f;
+    [SerializeField] private float searchDuration = 5f;
+    
+    [Header("Debug")]
+    [SerializeField] private bool debugBehaviour = true;
+    
+    [Header("Hit React")]
+    [SerializeField] private float hitReactDuration = 1f;
+    private float hitReactTimer;
+    private Vector3 hitDirection;
 
+    // search variables
     private Vector3 lastKnownPlayerPos;
-    private bool hadLOS;
+    private float lastTimeSeen = -999f;
     private float searchTimer;
-    
-    [SerializeField] private float searchDuration = 3f;
-    
-    private State currentState;
-    private State lastState;  // DEBUG
-    private int index;
 
+    // patrol variables
+    private int waypointIndex;
+    private State currentState;
+
+    
     void Awake()
     {
+        movement = GetComponent<EnemyMovementAI>();
         healthSystem = GetComponent<EnemyHealth>();
         combatSystem = GetComponent<EnemyCombatAI>();
     }
 
     void Update()
     {
-        DecideState();
+        UpdatePerception();
+        EvaluateTree();
+    }
+    
+    // ----------------------------------------- BEHAVIOUR TREE ----------------------------------------- //
 
-        // debug
-        if (currentState != lastState)
-        {
-            Debug.Log("State: " + currentState);
-            lastState = currentState;
-        }
-        //
-        
-        ExecuteState();
+    void EvaluateTree()
+    {
+        if (TryRetreat()) return;
+        if (TryAttack()) return;
+        if (TryChase()) return;
+        if (TrySearch()) return;
+        if (TryHitReact()) return;
+
+        TryPatrol();
     }
 
-    // ------------------------------ STATE ------------------------------ //
+    // ----------------------------------------- TREE NODES ----------------------------------------- //
 
-    void DecideState()
+    bool TryRetreat()
     {
-        float dist = Vector3.Distance(transform.position, player.position);
-        bool hasLOS = combatSystem.HasLineOfSight();
-
-        // dacă vede playerul → update last position
-        if (hasLOS)
+        if (healthSystem.health <= 10f)
         {
-            lastKnownPlayerPos = player.position;
-            hadLOS = true;
+            SetState(State.Retreat);
+            RetreatUpdate();
+            return true;
         }
-        
-        if (healthSystem.health <= 20f)
-        {
-            currentState = State.Retreat;
-            return;
-        }
-
-        if (hasLOS && dist > attackRange)
-        {
-            currentState = State.Chase;
-            return;
-        }
-
-        if (hasLOS && dist <= attackRange)
-        {
-            currentState = State.Attack;
-            return;
-        }
-
-        if (!hasLOS && hadLOS)
-        {
-            currentState = State.Search;
-            return;
-        }
-
-        currentState = State.Patrol;
+        return false;
     }
 
-    void ExecuteState()
+    bool TryAttack()
     {
-        switch (currentState)
+        if (CanSeePlayer() && InAttackRange())
         {
-            case State.Patrol:
-                StopCombat();
-                Patrol();
+            SetState(State.Attack);
+            combatSystem.TickCombat();
+            return true;
+        }
+        return false;
+    }
+
+    bool TryChase()
+    {
+        if (CanSeePlayer())
+        {
+            SetState(State.Chase);
+            ChaseUpdate();
+            return true;
+        }
+        return false;
+    }
+    
+    bool TrySearch()
+    {
+        bool recentlySeen = Time.time - lastTimeSeen < searchDuration;
+
+        if (recentlySeen)
+        {
+            SetState(State.Search);
+            SearchUpdate();
+            return true;
+        }
+        return false;
+    }
+    
+    bool TryHitReact()
+    {
+        if (hitReactTimer > 0f && !CanSeePlayer())
+        {
+            SetState(State.HitReact);
+            HitReactUpdate();
+            return true;
+        }
+        return false;
+    }
+
+    bool TryPatrol()
+    {
+        SetState(State.Patrol);
+        PatrolUpdate();
+        return true;
+    }
+
+    // ----------------------------------------- STATE TRANSITIONS ----------------------------------------- //
+
+    void SetState(State newState)
+    {
+        if (currentState == newState)
+            return;
+
+        if (debugBehaviour)
+            Debug.Log($"[BT] {currentState} -> {newState}");
+
+        OnStateExit(currentState);
+        currentState = newState;
+        OnStateEnter(currentState);
+    }
+
+    void OnStateEnter(State state)
+    {
+        /*
+        if (debugBehaviour)
+            Debug.Log($"[STATE ENTER] {state}");
+        */
+
+        switch (state)
+        {
+            case State.Attack:
+                movement.SetMode_NavMeshManual();
+                movement.SetLookTarget(player);
+                combatSystem.EnterCombat();
                 break;
 
-            case State.Chase:
-                StopCombat();
-                ChasePlayer();
+            case State.HitReact:
+                movement.SetMode_NavMeshManual();
+                movement.Stop();
+                movement.SetLookDirection(hitDirection);
+                combatSystem.ExitCombat();
                 break;
             
             case State.Search:
-                StopCombat();
-                Search();
+                searchTimer = 0f;
+                movement.SetMode_NavMeshFollow();
+                movement.SetLookTarget(player);
                 break;
             
-            case State.Attack:
-                Attack();
-                break;
-
-            case State.Retreat:
-                StopCombat();
-                Retreat();
+            default:
+                movement.SetMode_NavMeshFollow();
+                movement.SetRotationAuto();
+                combatSystem.ExitCombat();
                 break;
         }
     }
 
-    // ------------------------------ PATROL ------------------------------ //
-
-    private void Patrol()
+    void OnStateExit(State state)
     {
-        if (points.Length == 0)
-            return;
+        if (state == State.HitReact)
+            hitReactTimer = 0;
+        /*
+         if (debugBehaviour)
+            Debug.Log($"[STATE EXIT] {state}");
+         */
+    }
+    
+    void UpdatePerception()
+    {
+        if (CanSeePlayer())
+        {
+            lastKnownPlayerPos = player.position;
+            lastTimeSeen = Time.time;
+        }
+    }
+
+    // ----------------------------------------- NODES GAME LOGIC ----------------------------------------- //
+
+    void HitReactUpdate()
+    {
+        hitReactTimer -= Time.deltaTime;
+
+        // menține orientarea (important dacă rotația e lentă)
+        movement.SetLookDirection(hitDirection);
+    }
+    
+    void PatrolUpdate()
+    {
+        if (points.Length == 0) return;
 
         if (movement.HasReachedDestination(waypointTolerance))
         {
-            index = (index + 1) % points.Length;
-            movement.GoTo(points[index].position);
+            waypointIndex = (waypointIndex + 1) % points.Length;
+            movement.GoTo(points[waypointIndex].position);
         }
     }
 
-    // ------------------------------ CHASE ------------------------------ //
-
-    private void ChasePlayer()
+    void ChaseUpdate()
     {
-        Vector3 dir = (transform.position - player.position).normalized;
-        Vector3 targetPos = player.position + dir * 3f;
+        float desiredDistance = 3f;
+        
+        Vector3 toEnemy = (transform.position - player.position).normalized;
+        Vector3 desiredPos = player.position + toEnemy * desiredDistance;
 
-        movement.GoTo(targetPos);
+        if (movement.GetClosestNavMeshPoint(desiredPos, out Vector3 validPos))
+            movement.GoTo(validPos);
     }
 
-    // ------------------------------ RETREAT ------------------------------ //
-
-    private void Retreat()
+    void RetreatUpdate()
     {
         movement.GoTo(retreatPoint.position);
     }
 
-    // ------------------------------ ATTACK ------------------------------ //
-
-    private void Attack()
+    void SearchUpdate()
     {
-        combatSystem.TickCombat();
-    }
-    
-    // ------------------------------ SEARCH ------------------------------ //
-    private void Search()
-    {
-        movement.GoTo(lastKnownPlayerPos);
-
-        if (movement.HasReachedDestination(waypointTolerance))
+        if (!movement.HasReachedDestination(waypointTolerance))
         {
-            // transform.Rotate(0f, 120f * Time.deltaTime, 0f);
-
-            searchTimer += Time.deltaTime;
-
-            if (searchTimer >= searchDuration)
-            {
-                hadLOS = false;
-                searchTimer = 0f;
-            }
+            movement.GoTo(lastKnownPlayerPos);
+            return;
         }
-        else
+
+        searchTimer += Time.deltaTime;
+
+        if (searchTimer >= searchDuration)
         {
             searchTimer = 0f;
+            lastTimeSeen = -999f;
         }
     }
 
-    private void StopCombat()
+    // ----------------------------------------- CONDITIONS ----------------------------------------- //
+    
+    bool InAttackRange() =>
+        Vector3.Distance(transform.position, player.position) <= attackRange;
+
+    bool CanSeePlayer()
+        => combatSystem.CanSeePlayer();
+
+    // ----------------------------------------- EVENTS ----------------------------------------- //
+
+    public void OnHit(Vector3 source)
     {
-        combatSystem.StopAllCombat();
+        hitDirection = (source - transform.position);
+        hitDirection.y = 0f;
+
+        if (hitDirection.sqrMagnitude > 0.001f)
+            hitDirection.Normalize();
+
+        hitReactTimer = hitReactDuration;
+
+        /*
+        if (debugBehaviour)
+            Debug.Log("[BT] HIT REACTION TRIGGERED");
+        */
     }
 }
 

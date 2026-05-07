@@ -1,27 +1,35 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public enum AttackActionType
 {
-    ShootStanding,
     StrafeLeftShoot,
     StrafeRightShoot,
     PushForwardShoot,
     BackOffShoot,
-    
-    MaintainDistance,
-    DodgeLeft,
-    DodgeRight,
-    HoldPosition
+    MaintainDistanceShoot,
+    HoldPositionShoot
 }
-    
-public struct CombatState
+
+enum DistanceState { Close, Medium, Far }
+enum HealthState { Low, Medium, High }
+
+struct RLState
 {
-    public float distanceToPlayer;
-    public bool gaveDamage; // hit enemy recently
-    public bool tookDamage; // was hit by enemy recently
-    public float health;
-    public bool playerVisible;
+    public DistanceState distance;
+    public HealthState health;
+    public HealthState enemyHealth;
+    public bool tookDamage;
+
+    public override int GetHashCode()
+    {
+        return  (tookDamage ? 1 : 0) + 
+                (int)distance * 10 +
+                (int)health * 100 +
+                (int)enemyHealth * 1000;
+    }
 }
+
 
 public class EnemyCombatAI : MonoBehaviour
 {
@@ -29,263 +37,468 @@ public class EnemyCombatAI : MonoBehaviour
     [SerializeField] private Transform aimTarget;
     [SerializeField] private FirearmController firearm;
     [SerializeField] private FirearmAimer firearmAimer;
+    [SerializeField] private EnemyBehaviour behaviour;
     [SerializeField] private EnemyMovementAI movement;
     [SerializeField] private EnemyHealth healthSystem;
 
-    [Header("Timing")]
+    [Header("Timing parameters")]
     [SerializeField] private float decisionInterval = 0.5f;
-    [SerializeField] private float actionDuration = 0.4f;
+    [SerializeField] private float fireCooldown = 0.4f;
 
+    [Header("RL parameters")]
+    [SerializeField] private float learningRate = 0.3f;
+    [SerializeField] private float discount = 0.7f;
+    [SerializeField] private float epsilon = 0.4f;
+
+    [Header("Debug")]
+    [SerializeField] private bool debugCombat = true;
+
+    [Header("Timers")]
+    public float tookDamageTimer;
+    public float gaveDamageTimer;
     private float decisionTimer;
     private float fireTimer;
 
+    // flags
+    private bool isInCombat;
     private bool isShooting;
-
-    public float gaveDamageTimer;
-    public float tookDamageTimer;
     
-    [SerializeField] private bool useDebug = false;
+    // RL variables
+    private Dictionary<int, float[]> qTable = new();
+    private AttackActionType[] actions;
+
+    private RLState prevState;
+    private int prevActionIndex;
+    private bool hasPrev;
+
     
     void Start()
     {
-        aimTarget = PlayerController.Instance.transform;
+        actions = (AttackActionType[])System.Enum.GetValues(typeof(AttackActionType));
     }
 
     void Update()
     {
-        gaveDamageTimer -= Time.deltaTime;
-        tookDamageTimer -= Time.deltaTime;
-        
+        UpdateTimers();
+
+        if (!isInCombat)
+            return;
+
+        MaintainAim();
         HandleShooting();
-        
-        if (useDebug)
-            DebugInput();
     }
 
-    // ------------------------------ MAIN ------------------------------ //
+    // ----------------------------------- COMBAT ----------------------------------- //
+
+    public void EnterCombat()
+    {
+        isInCombat = true;
+        decisionTimer = 0f;
+        hasPrev = false;
+    }
+
+    public void ExitCombat()
+    {
+        isInCombat = false;
+        StopShooting();
+        hasPrev = false;
+    }
 
     public void TickCombat()
     {
-        if (useDebug)
+        if (!isInCombat)
             return;
-        
-        decisionTimer -= Time.deltaTime;
 
+        decisionTimer -= Time.deltaTime;
         if (decisionTimer > 0f)
             return;
 
         decisionTimer = decisionInterval;
 
-        CombatState state = BuildState();
+        RLState state = BuildRLState();
+
         AttackActionType action = DecideAction(state);
+        int actionIndex = System.Array.IndexOf(actions, action);
+
+        float reward = 0f;
+
+        if (hasPrev)
+        {
+            reward = CalculateReward(state, actionIndex);
+            UpdateQ(prevState, prevActionIndex, state, reward);
+        }
+
+        if (debugCombat)
+        {
+            Debug.Log($"[RL] {state.distance} | HP:{state.health} | EnemyHP:{state.enemyHealth} | TDmg:{state.tookDamage}");
+            Debug.Log($"[RL] Action: {action} | Reward: {reward:F2}");
+        }
+
+        prevState = state;
+        prevActionIndex = actionIndex;
+        hasPrev = true;
 
         ExecuteAction(action);
+
+        epsilon = Mathf.Max(0.05f, epsilon * 0.999f);
     }
 
-    public void StopAllCombat()
+    // ----------------------------------- RL ----------------------------------- //
+
+    RLState BuildRLState()
     {
-        StopShooting();
-    }
-
-    // ------------------------------ DECISION ------------------------------ //
-
-    private CombatState BuildState()
-    {
-        float dist = Vector3.Distance(transform.position, aimTarget.position);
-
-        return new CombatState
+        return new RLState
         {
-            distanceToPlayer = dist,
-            health = healthSystem.health,
-            playerVisible = HasLineOfSight(),
-            gaveDamage = gaveDamageTimer > 0,
+            distance = GetDistanceState(Vector3.Distance(transform.position, aimTarget.position)),
+            health = GetHealthState(healthSystem.health),
+            enemyHealth = GetHealthState(PlayerController.Instance.currentHealth),  // hardcoded enemy = player
             tookDamage = tookDamageTimer > 0
         };
     }
 
-    private AttackActionType DecideAction(CombatState state)
+    AttackActionType DecideAction(RLState state)
     {
-        if (state.distanceToPlayer < 5f)
-            return AttackActionType.BackOffShoot;
+        int key = state.GetHashCode();
+
+        if (!qTable.ContainsKey(key))
+        {
+            qTable[key] = new float[actions.Length];
+
+            for (int i = 0; i < actions.Length; i++)
+                qTable[key][i] = Random.Range(0f, 0.1f);
+        }
+
+        // explore - get random action
+        if (Random.value < epsilon)
+            return actions[Random.Range(0, actions.Length)];
+
+        // exploit - get best action
+        float[] q = qTable[key];
+
+        int best = 0;
+        for (int i = 1; i < q.Length; i++)
+            if (q[i] > q[best])
+                best = i;
+
+        return actions[best];
+    }
+    
+    void UpdateQ(RLState prevState, int actionIndex, RLState newState, float reward)
+    {
+        int prevKey = prevState.GetHashCode();
+        int newKey = newState.GetHashCode();
+
+        if (!qTable.ContainsKey(newKey))
+            qTable[newKey] = new float[actions.Length];
+
+        float[] prevQ = qTable[prevKey];
+        float[] nextQ = qTable[newKey];
+
+        float maxNext = Mathf.Max(nextQ);
+
+        prevQ[actionIndex] += learningRate *
+                              (reward + discount * maxNext - prevQ[actionIndex]);
+    }
+    
+   // ------------------------------ REWARD ------------------------------ //
+
+    float CalculateReward(RLState state, int actionIndex)
+    {
+        // TODO - valid move dir
+        
+        float reward = 0f;
+        
+        float dist = Vector3.Distance(transform.position, aimTarget.position);
+
+        var action = actions[actionIndex];
+
+        // DAMAGE
+        if (gaveDamageTimer > 0)
+            reward += 1f;
 
         if (state.tookDamage)
+            reward -= 1.2f;
+
+        // DISTANCE LOGIC
+        if (dist < 3f)
         {
-            tookDamageTimer = 0f;
-
-            if (movement.CanMove(movement.GetRight(), 1f))
-                return AttackActionType.StrafeRightShoot;
-
-            if (movement.CanMove(-movement.GetRight(), 1f))
-                return AttackActionType.StrafeLeftShoot;
-
-            return AttackActionType.BackOffShoot;
+            reward -= 0.5f;
+            if (action == AttackActionType.BackOffShoot)
+                reward += 0.6f;
+        }
+        else if (dist > 10f)
+        {
+            reward -= 0.3f;
+            if (action == AttackActionType.PushForwardShoot)
+                reward += 0.4f;
+        }
+        else
+        {
+            reward += 0.2f;
         }
 
-        if (state.gaveDamage)
+        // HEALTH LOGIC
+        bool winning = state.health > state.enemyHealth;
+
+        if (winning)
         {
-            gaveDamageTimer = 0f;
-            return AttackActionType.ShootStanding;
+            if (action == AttackActionType.PushForwardShoot)
+                reward += 0.3f;
+
+            if (action == AttackActionType.HoldPositionShoot)
+                reward += 0.2f;
+        }
+        else
+        {
+            if (action == AttackActionType.BackOffShoot)
+                reward += 0.4f;
+
+            if (action == AttackActionType.StrafeLeftShoot ||
+                action == AttackActionType.StrafeRightShoot)
+                reward += 0.3f;
         }
 
-        return AttackActionType.ShootStanding;
+        // DAMAGE REACTION
+        if (state.tookDamage)
+        {
+            if (action == AttackActionType.StrafeLeftShoot ||
+                action == AttackActionType.StrafeRightShoot)
+                reward += 0.4f;
+
+            if (action == AttackActionType.HoldPositionShoot)
+                reward -= 0.3f;
+        }
+
+        // SAFE STATE
+        if (!state.tookDamage && dist >= 5f && dist <= 8f)
+        {
+            if (action == AttackActionType.MaintainDistanceShoot)
+                reward += 0.3f;
+        }
+
+        return reward;
     }
 
-    // ------------------------------ EXECUTION ------------------------------ //
+    // ----------------------------------- EXECUTION ----------------------------------- //
 
-    private void ExecuteAction(AttackActionType action)
+    void ExecuteAction(AttackActionType action)
     {
+        StopShooting();
+
         switch (action)
         {
-            case AttackActionType.ShootStanding:
-                movement.HoldPosition();
-                StartShooting();
-                break;
-
             case AttackActionType.StrafeLeftShoot:
-                movement.StrafeLeft(actionDuration);
+                movement.StrafeLeft();
                 StartShooting();
                 break;
 
             case AttackActionType.StrafeRightShoot:
-                movement.StrafeRight(actionDuration);
+                movement.StrafeRight();
                 StartShooting();
                 break;
 
             case AttackActionType.PushForwardShoot:
-                movement.PushForward(actionDuration);
+                movement.PushForward();
                 StartShooting();
                 break;
 
             case AttackActionType.BackOffShoot:
-                movement.BackOff(actionDuration);
+                movement.BackOff();
                 StartShooting();
                 break;
 
-            case AttackActionType.MaintainDistance:
-                movement.MaintainDistance(5f, 8f, actionDuration);
+            case AttackActionType.MaintainDistanceShoot:
+                movement.MaintainDistance(5f, 8f);
                 StartShooting();
                 break;
 
-            case AttackActionType.DodgeLeft:
-                movement.DodgeLeft(actionDuration);
-                StopShooting(); // dodge = fără shoot
-                break;
-
-            case AttackActionType.DodgeRight:
-                movement.DodgeRight(actionDuration);
-                StopShooting();
-                break;
-
-            case AttackActionType.HoldPosition:
+            case AttackActionType.HoldPositionShoot:
                 movement.HoldPosition();
-                StopShooting();
+                StartShooting();
                 break;
         }
     }
 
-    //  ------------------------------SHOOT ------------------------------ //
+    // ----------------------------------- SHOOTING ----------------------------------- //
 
-    private void HandleShooting()
+    void HandleShooting()
     {
-        if (!isShooting)
-            return;
-
-        Vector3 dir = (aimTarget.position - firearm.transform.position).normalized;
-
-        Aim(dir);
+        if (!isShooting) return;
+        
+        Vector3 shootDir = firearmAimer.weaponPivot.forward;
 
         fireTimer += Time.deltaTime;
-
-        if (fireTimer >= firearm.data.fireRate)
+        if (fireTimer >= fireCooldown)
         {
-            firearm.Fire(transform.position, dir);
+            firearm.Fire(firearmAimer.weaponPivot.position, shootDir);
             fireTimer = 0f;
         }
     }
 
-    private void StartShooting()
-    {
-        isShooting = true;
-    }
+    void StartShooting() => isShooting = true;
 
-    private void StopShooting()
+    void StopShooting()
     {
         isShooting = false;
         fireTimer = 0f;
-        // firearmAimer.SetAimDirection(transform.forward);
     }
 
-    private void Aim(Vector3 dir)
+    void MaintainAim()
     {
-        // aim weapon
-        firearmAimer.SetAimDirection(dir);
+        if (!aimTarget) return;
 
-        // aim body
-        dir.y = 0f;
+        Vector3 targetPoint = GetBestAimPoint();
+        
+        Vector3 aimDir = (targetPoint - firearmAimer.weaponPivot.position).normalized;
+        firearmAimer.SetAimDirection(aimDir);
+    }
+    
+    Vector3 GetBestAimPoint()
+    {
+        Vector3 origin = transform.position + transform.up * 1.25f;
 
-        if (dir.sqrMagnitude < 0.001f)
-            return;
+        Vector3[] targets =
+        {
+            aimTarget.position + Vector3.up * 0.7f, // head
+            aimTarget.position,                     // body
+            aimTarget.position - Vector3.up * 0.7f  // legs
+        };
 
-        Quaternion targetRot = Quaternion.LookRotation(dir);
-        transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, 10f * Time.deltaTime);
+        foreach (var t in targets)
+        {
+            Vector3 dir = (t - origin).normalized;
+            float dist = Vector3.Distance(origin, t);
+
+            if (Physics.Raycast(origin, dir, out RaycastHit hit, dist))
+            {
+                if (hit.transform.root == aimTarget)
+                    return t;
+            }
+        }
+
+        return aimTarget.position; // fallback
     }
 
-    // ------------------------------ UTIL ------------------------------ //
+    // ----------------------------------- EVENTS ----------------------------------- //
 
     public void RegisterTookDamage()
     {
-        tookDamageTimer = 2f;
+        tookDamageTimer = 1.5f;
+        behaviour.OnHit(aimTarget.position);
     }
 
     public void RegisterGaveDamage()
     {
-        gaveDamageTimer = 2f;
+        gaveDamageTimer = 1.5f;
     }
 
+    // ----------------------------------- UTILS ----------------------------------- //
+
+    public bool CanSeePlayer()
+    {
+        return IsInFOV() && HasLineOfSight();
+    }
+    
+    bool IsInFOV()
+    {
+        Vector3 origin = transform.position + transform.up * 1.25f;
+        Vector3 toTarget = (aimTarget.position - origin).normalized;
+
+        float angle = Vector3.Angle(transform.forward, toTarget);
+
+        float fov = 120f;
+
+        return angle <= fov * 0.5f;
+    }
+    
     public bool HasLineOfSight()
     {
-        Vector3 origin = transform.position;
+        Vector3 origin = transform.position + transform.up * 1.25f;
         Vector3 dir = (aimTarget.position - origin).normalized;
         float dist = Vector3.Distance(origin, aimTarget.position);
 
-        return Physics.Raycast(origin, dir, out RaycastHit hit, dist)
-               && hit.transform == aimTarget;
+        if (Physics.Raycast(origin, dir, out RaycastHit hit, dist))
+            return hit.transform.root == aimTarget;
+
+        return false;
     }
     
-    private void ExecuteDebug(AttackActionType action)
+    void UpdateTimers()
     {
-        Debug.Log($"Action: {action}");
-        ExecuteAction(action);
+        gaveDamageTimer -= Time.deltaTime;
+        tookDamageTimer -= Time.deltaTime;
     }
 
-    private void DebugInput()
+    DistanceState GetDistanceState(float d)
     {
-        if (Input.GetKeyDown(KeyCode.Alpha1))
-            ExecuteDebug(AttackActionType.ShootStanding);
+        if (d <= 3f) return DistanceState.Close;
+        if (d <= 6f) return DistanceState.Medium;
+        return DistanceState.Far;
+    }
 
-        if (Input.GetKeyDown(KeyCode.Alpha2))
-            ExecuteDebug(AttackActionType.StrafeLeftShoot);
+    HealthState GetHealthState(float hp)
+    {
+        if (hp < 100f) return HealthState.Low;
+        if (hp < 400f) return HealthState.Medium;
+        return HealthState.High;
+    }
+    
+    // ----------------------------------- DEBUG ----------------------------------- //
+    
+    void OnDrawGizmos()
+    {
+        if (!debugCombat || aimTarget == null)
+            return;
 
-        if (Input.GetKeyDown(KeyCode.Alpha3))
-            ExecuteDebug(AttackActionType.StrafeRightShoot);
+        Vector3 origin = transform.position + transform.up * 1.25f;
 
-        if (Input.GetKeyDown(KeyCode.Alpha4))
-            ExecuteDebug(AttackActionType.PushForwardShoot);
+        // ---------------- FOV ----------------
+        float fov = 120f;
+        float halfFov = fov / 2f;
 
-        if (Input.GetKeyDown(KeyCode.Alpha5))
-            ExecuteDebug(AttackActionType.BackOffShoot);
+        Vector3 forward = transform.forward;
 
-        if (Input.GetKeyDown(KeyCode.Alpha6))
-            ExecuteDebug(AttackActionType.MaintainDistance);
+        Quaternion leftRot = Quaternion.Euler(0, -halfFov, 0);
+        Quaternion rightRot = Quaternion.Euler(0, halfFov, 0);
 
-        if (Input.GetKeyDown(KeyCode.Alpha7))
-            ExecuteDebug(AttackActionType.DodgeLeft);
+        Vector3 leftDir = leftRot * forward;
+        Vector3 rightDir = rightRot * forward;
 
-        if (Input.GetKeyDown(KeyCode.Alpha8))
-            ExecuteDebug(AttackActionType.DodgeRight);
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawRay(origin, leftDir * 20f);
+        Gizmos.DrawRay(origin, rightDir * 20f);
 
-        if (Input.GetKeyDown(KeyCode.Alpha9))
-            ExecuteDebug(AttackActionType.HoldPosition);
+        // ---------------- LOS ----------------
+        Vector3 targetPos = aimTarget.position;
+        Vector3 losDir = (targetPos - origin).normalized;
+        float dist = Vector3.Distance(origin, targetPos);
+
+        bool hasLOS = HasLineOfSight();
+
+        Gizmos.color = hasLOS ? Color.green : Color.red;
+        Gizmos.DrawRay(origin, losDir * dist);
+
+        Gizmos.color = Color.blue;
+        Gizmos.DrawSphere(targetPos, 0.2f);
+
+        /*
+        // ---------------- AIM DEBUG ----------------
+        if (firearmAimer == null || firearmAimer.weaponPivot == null)
+            return;
+
+        Vector3 weaponOrigin = firearmAimer.weaponPivot.position;
+
+        // target point (head/body/legs logic)
+        Vector3 bestTarget = GetBestAimPoint();
+
+        Gizmos.color = Color.cyan;
+        Gizmos.DrawSphere(bestTarget, 0.15f);
+
+        // calculated aim direction
+        Vector3 aimDir = (bestTarget - weaponOrigin).normalized;
+
+        Gizmos.color = Color.darkGreen;
+        Gizmos.DrawRay(weaponOrigin, aimDir * 10f);
+        */
     }
 }
-

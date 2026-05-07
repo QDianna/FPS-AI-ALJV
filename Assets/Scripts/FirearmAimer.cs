@@ -3,7 +3,7 @@ using UnityEngine;
 public class FirearmAimer : MonoBehaviour
 {
     [Header("References")]
-    [SerializeField] private Transform weaponPivot;
+    public Transform weaponPivot;
 
     [Header("Settings")]
     [SerializeField] private float rotationSpeed = 360f;
@@ -11,6 +11,8 @@ public class FirearmAimer : MonoBehaviour
 
     private bool hasTarget;
     private Vector3 targetDirection;
+    
+    [SerializeField] private bool usePitchOnly = false;
 
     public void SetAimDirection(Vector3 worldDirection)
     {
@@ -26,17 +28,45 @@ public class FirearmAimer : MonoBehaviour
 
     void LateUpdate()
     {
-        if (!hasTarget)
+        if (!hasTarget || weaponPivot == null)
             return;
 
-        Quaternion targetRot = Quaternion.LookRotation(targetDirection);
+        if (usePitchOnly)
+        {
+            // ENEMY MODE (pitch only)
 
-        weaponPivot.rotation = instant
-            ? targetRot
-            : Quaternion.RotateTowards(
-                weaponPivot.rotation,
-                targetRot,
-                rotationSpeed * Time.deltaTime
-            );
+            Quaternion worldRot = Quaternion.LookRotation(targetDirection);
+
+            Quaternion localRot = Quaternion.Inverse(weaponPivot.parent.rotation) * worldRot;
+
+            float pitch = localRot.eulerAngles.x;
+
+            if (pitch > 180f) pitch -= 360f;
+
+            Quaternion targetRot = Quaternion.Euler(pitch, 0f, 0f);
+
+            weaponPivot.localRotation = instant
+                ? targetRot
+                : Quaternion.RotateTowards(
+                    weaponPivot.localRotation,
+                    targetRot,
+                    rotationSpeed * Time.deltaTime
+                );
+        }
+        
+        else
+        {
+            // PLAYER MODE (full aim)
+
+            Quaternion targetRot = Quaternion.LookRotation(targetDirection);
+
+            weaponPivot.rotation = instant
+                ? targetRot
+                : Quaternion.RotateTowards(
+                    weaponPivot.rotation,
+                    targetRot,
+                    rotationSpeed * Time.deltaTime
+                );
+        }
     }
 }

@@ -1,26 +1,38 @@
 using UnityEngine;
 using UnityEngine.AI;
-using System.Collections;
 
 public class EnemyMovementAI : MonoBehaviour
 {
-    [Header("Movement")]
-    [SerializeField] private float moveSpeed = 3f;
-    [SerializeField] private float obstacleCheckDistance = 1f;
-
-    private Transform player;
-    private NavMeshAgent agent;
-
-    private Coroutine currentMoveRoutine;
-    private bool isMoving;
-
-    private enum MovementMode
+    public enum MovementMode
     {
-        NavMesh,
-        Manual
+        NavMeshFollow,
+        NavMeshManual
     }
 
-    private MovementMode currentMode;
+    public enum RotationMode
+    {
+        Auto,
+        LookAt
+    }
+
+    [Header("Movement")]
+    [SerializeField] private float moveSpeed = 3f;
+    [SerializeField] private float sampleRadius = 1f;
+    [SerializeField] private float rotationSpeed = 20f;
+    
+    [Header("Debug")]
+    [SerializeField] private bool debugMovement = false;
+
+    private Transform player;
+    private Transform lookTarget;
+    private Vector3 lookDirection;
+    
+    private bool useDirection;
+
+    private NavMeshAgent agent;
+
+    private MovementMode movementMode;
+    private RotationMode rotationMode;
 
     void Awake()
     {
@@ -30,191 +42,222 @@ public class EnemyMovementAI : MonoBehaviour
     void Start()
     {
         player = PlayerController.Instance.transform;
+        agent.speed = moveSpeed;
     }
 
-    // ------------------------------ NAVMESH ------------------------------ //
+    void Update()
+    {
+        HandleRotation();
+    }
+
+    // ----------------------------------------- MODE CONTROL ----------------------------------------- //
+
+    public void SetMode_NavMeshFollow()
+    {
+        movementMode = MovementMode.NavMeshFollow;
+        agent.isStopped = false;
+        agent.updateRotation = true;
+        
+        if (debugMovement)
+            Debug.Log("[MOVE] Mode = NavMeshFollow");
+    }
+
+    public void SetMode_NavMeshManual()
+    {
+        movementMode = MovementMode.NavMeshManual;
+        agent.isStopped = false;
+        agent.updateRotation = false;
+        
+        if (debugMovement)
+            Debug.Log("[MOVE] Mode = NavMeshManual");
+    }
+
+    public void SetRotationAuto()
+    {
+        rotationMode = RotationMode.Auto;
+        agent.updateRotation = true;
+
+        if (debugMovement)
+            Debug.Log("[MOVE] Rotation = Auto");
+    }
+
+    public void SetLookTarget(Transform target)
+    {
+        rotationMode = RotationMode.LookAt;
+        lookTarget = target;
+        useDirection = false;
+        agent.updateRotation = false;
+    }
+    
+    public void SetLookDirection(Vector3 dir)
+    {
+        if (dir.sqrMagnitude < 0.001f)
+            return;
+
+        rotationMode = RotationMode.LookAt;
+        lookDirection = dir.normalized;
+        useDirection = true;
+        agent.updateRotation = false;
+    }
+
+    // ----------------------------------------- CORE NAV ----------------------------------------- //
+
+    public void Stop()
+    {
+        agent.isStopped = true;
+    }
 
     public void GoTo(Vector3 position)
     {
-        SwitchToNavMesh();
-
-        agent.isStopped = false;
-        agent.SetDestination(position);
-    }
-
-    public void StopNavMesh()
-    {
-        if (agent != null)
-            agent.isStopped = true;
-    }
-
-    // ------------------------------ COMBAT MOVEMENT ------------------------------ //
-
-    public void StrafeLeft(float duration)
-    {
-        StartManualMove(-GetRight(), duration);
-    }
-
-    public void StrafeRight(float duration)
-    {
-        StartManualMove(GetRight(), duration);
-    }
-
-    public void BackOff(float duration)
-    {
-        Vector3 dir = (transform.position - player.position).normalized;
-        StartManualMove(dir, duration);
-    }
-    
-    public void PushForward(float duration)
-    {
-        Vector3 dir = (player.position - transform.position).normalized;
-        StartManualMove(dir, duration);
-    }
-
-    public void MaintainDistance(float desiredMin, float desiredMax, float duration)
-    {
-        Vector3 toPlayer = (player.position - transform.position);
-        float dist = toPlayer.magnitude;
-
-        Vector3 dir = Vector3.zero;
-
-        if (dist < desiredMin)
-            dir = -toPlayer.normalized; // prea aproape → înapoi
-        else if (dist > desiredMax)
-            dir = toPlayer.normalized;  // prea departe → înainte
-        else
-            return; // deja în range bun → nu mișcă
-
-        StartManualMove(dir, duration);
-    }
-    
-    public void DodgeLeft(float duration)
-    {
-        StartManualMove(-GetRight(), duration * 0.3f); // mai scurt decât strafe
-    }
-
-    public void DodgeRight(float duration)
-    {
-        StartManualMove(GetRight(), duration * 0.3f);
-    }
-    
-    public void HoldPosition()
-    {
-        StopAllMovement();
-    }
-    
-    // ------------------------------ MODE SWITCH ------------------------------ //
-
-    private void SwitchToManual()
-    {
-        currentMode = MovementMode.Manual;
-
-        if (agent != null)
+        if (TryGetValidNavMeshPosition(position, out Vector3 validPos))
         {
-            agent.isStopped = true;
-            agent.ResetPath();
+            agent.isStopped = false;
+            agent.speed = moveSpeed;
+            agent.SetDestination(validPos);
+
+            if (debugMovement)
+                Debug.Log($"[MOVE] GoTo -> {validPos}");
+        }
+        else
+        {
+            if (debugMovement)
+                Debug.Log("[MOVE] Invalid destination");
         }
     }
 
-    private void SwitchToNavMesh()
+    public bool GetClosestNavMeshPoint(Vector3 target, out Vector3 result)
     {
-        currentMode = MovementMode.NavMesh;
-
-        StopManualMovement();
+        return TryGetValidNavMeshPosition(target, out result);
     }
 
-    // ------------------------------ CORE ------------------------------ //
+    // ----------------------------------------- COMBAT MOVEMENT ----------------------------------------- //
 
-    public bool CanMove(Vector3 dir, float checkDistance)
+    public void StrafeLeft(float distance = 2f)
     {
-        Vector3 origin = transform.position + Vector3.up * 1f;
-        return !Physics.Raycast(origin, dir, checkDistance);
+        Vector3 dir = -GetRight();
+        MoveInDirection(dir, distance, moveSpeed);
     }
+
+    public void StrafeRight(float distance = 2f)
+    {
+        Vector3 dir = GetRight();
+        MoveInDirection(dir, distance, moveSpeed);
+    }
+
+    public void BackOff(float distance = 2f)
+    {
+        Vector3 dir = (transform.position - player.position).normalized;
+        MoveInDirection(dir, distance, moveSpeed);
+    }
+
+    public void PushForward(float distance = 2f)
+    {
+        Vector3 dir = (player.position - transform.position).normalized;
+        MoveInDirection(dir, distance, moveSpeed);
+    }
+    
+    public void MaintainDistance(float min, float max)
+    {
+        float dist = Vector3.Distance(transform.position, player.position);
+
+        if (dist < min)
+            BackOff(1f);
+        else if (dist > max)
+            PushForward(1f);
+        else
+            Stop();
+    }
+
+    public void HoldPosition()
+    {
+        Stop();
+    }
+
+    private void MoveInDirection(Vector3 dir, float distance, float speed)
+    {
+        Vector3 target = transform.position + dir * distance;
+
+        if (TryGetValidNavMeshPosition(target, out Vector3 validPos))
+        {
+            agent.isStopped = false;
+            agent.speed = speed;
+            agent.SetDestination(validPos);
+
+            if (debugMovement)
+                Debug.Log($"[MOVE] Directional move -> {validPos}");
+        }
+    }
+
+    // ----------------------------------------- ROTATION ----------------------------------------- //
+
+    private void HandleRotation()
+    {
+        if (rotationMode != RotationMode.LookAt)
+            return;
+
+        Vector3 dir;
+
+        if (useDirection)
+        {
+            dir = lookDirection;
+        }
+        else if (lookTarget != null)
+        {
+            dir = lookTarget.position - transform.position;
+        }
+        else
+        {
+            return;
+        }
+
+        dir.y = 0f;
+
+        if (dir.sqrMagnitude < 0.001f)
+            return;
+
+        Quaternion targetRot = Quaternion.LookRotation(dir.normalized);
+
+        transform.rotation = Quaternion.Slerp(
+            transform.rotation,
+            targetRot,
+            Time.deltaTime * rotationSpeed
+        );
+    }
+
+    // ----------------------------------------- HELPERS ----------------------------------------- //
 
     public Vector3 GetRight()
     {
-        Vector3 toPlayer = (player.position - transform.position).normalized;
-        return Vector3.Cross(Vector3.up, toPlayer);
-    }
-    
-    public void FaceDirection(Vector3 dir)
-    {
-        dir.y = 0f;
-        if (dir.sqrMagnitude < 0.01f) return;
+        Vector3 toPlayer = (player.position - transform.position);
+        toPlayer.y = 0f;
 
-        Quaternion rot = Quaternion.LookRotation(dir);
-        transform.rotation = Quaternion.Slerp(transform.rotation, rot, 10f * Time.deltaTime);
+        if (toPlayer.sqrMagnitude < 0.01f)
+            return transform.right;
+
+        return Vector3.Cross(Vector3.up, toPlayer.normalized);
     }
 
-    // ------------------------------ MANUAL ------------------------------ //
-
-    private void StartManualMove(Vector3 dir, float duration)
-    {
-        SwitchToManual();
-
-        if (currentMoveRoutine != null)
-            StopCoroutine(currentMoveRoutine);
-
-        currentMoveRoutine = StartCoroutine(MoveRoutine(dir, duration));
-    }
-
-    private IEnumerator MoveRoutine(Vector3 dir, float duration)
-    {
-        isMoving = true;
-
-        float timer = 0f;
-
-        dir.y = 0f;
-        dir.Normalize();
-
-        while (timer < duration)
-        {
-            if (CanMove(dir, obstacleCheckDistance))
-            {
-                transform.Translate(dir * moveSpeed * Time.deltaTime, Space.World);
-                // FaceDirection(dir);
-            }
-
-            timer += Time.deltaTime;
-            yield return null;
-        }
-
-        isMoving = false;
-    }
-
-    public void StopManualMovement()
-    {
-        if (currentMoveRoutine != null)
-        {
-            StopCoroutine(currentMoveRoutine);
-            currentMoveRoutine = null;
-        }
-
-        isMoving = false;
-    }
-
-    // ------------------------------ GLOBAL STOP ------------------------------ //
-
-    public void StopAllMovement()
-    {
-        StopManualMovement();
-        StopNavMesh();
-    }
-
-    // ------------------------------ INFO ------------------------------ //
-
-    public bool IsMoving()
-    {
-        return isMoving;
-    }
-    
     public bool HasReachedDestination(float tolerance = 0.5f)
     {
-        if (agent == null || !agent.hasPath)
+        if (!agent.hasPath)
             return true;
 
         return agent.remainingDistance <= tolerance;
+    }
+
+    private bool TryGetValidNavMeshPosition(Vector3 target, out Vector3 result)
+    {
+        Vector3 flatTarget = target;
+        flatTarget.y = transform.position.y;
+        
+        if (NavMesh.SamplePosition(flatTarget, out NavMeshHit hit, sampleRadius, NavMesh.AllAreas))
+        {
+            result = hit.position;
+            return true;
+        }
+
+        result = transform.position;
+        return false;
     }
 }
 

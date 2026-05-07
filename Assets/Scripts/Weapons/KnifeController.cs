@@ -42,7 +42,7 @@ public class KnifeController : MonoBehaviour
         {
             if (hit.collider.TryGetComponent<EnemyHealth>(out var enemy))
             {
-                enemy.TakeDamage(damage);
+                enemy.TakeDamage(damage, transform.forward);
             }
         }
 

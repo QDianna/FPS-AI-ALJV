@@ -22,7 +22,7 @@ public class PlayerController : MonoBehaviour, IDamageable
     
     [Header("Stats")]
     public float maxHealth = 100;
-    public float currentHealth = 100;
+    [HideInInspector] public float currentHealth;
     public float maxArmor = 100;
     public float currentArmor = 0;
     public int armorPrice = 12;
@@ -67,6 +67,8 @@ public class PlayerController : MonoBehaviour, IDamageable
                 
         if (!cameraTransform && Camera.main)
             cameraTransform = Camera.main.transform;
+        
+        currentHealth = maxHealth;
         
         SetCanOpenShop(false);
     }
@@ -262,7 +264,7 @@ public class PlayerController : MonoBehaviour, IDamageable
     
     // --------------------------- PLAYER STATS --------------------------- //
     
-    public void TakeDamage(float amount)
+    public void TakeDamage(float amount, Vector3 attackerPos)
     {
         /*float armorTank = currentArmor - amount;
         if (currentArmor > 0)

@@ -50,7 +50,7 @@ public class FirearmController : MonoBehaviour
         // damage
         if (hasHit && hit.collider.TryGetComponent<IDamageable>(out var dmg))
         {
-            dmg.TakeDamage(data.damage);
+            dmg.TakeDamage(data.damage, transform.forward);
             GetComponentInParent<EnemyCombatAI>()?.RegisterGaveDamage();
 
         }

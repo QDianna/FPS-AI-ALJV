@@ -53,7 +53,7 @@ public class PlayerWeaponsController : MonoBehaviour
         }
         else
         {
-            Debug.Log("No firearm found on player at the start");
+            // Debug.Log("No firearm found on player at the start");
             
             activeSlot = WeaponSlot.Knife;
             GameUI.Instance.OnSlotSelected(activeSlot);
@@ -67,14 +67,14 @@ public class PlayerWeaponsController : MonoBehaviour
         // already have this weapon
         if (Inventory.Instance.HasItem(pickupData))
         {
-            Debug.Log("Pickup Firearm: already have this weapon");
+            // Debug.Log("Pickup Firearm: already have this weapon");
             return false;
         }
 
         // have different weapon on the slot => on drop from specific slot
         if (Inventory.Instance.HasItemOnSlot(weaponSlot))
         {
-            Debug.Log("Pickup Firearm: already have a weapon on this slot, dropping...");
+            // Debug.Log("Pickup Firearm: already have a weapon on this slot, dropping...");
             DropWeaponFromSlot(weaponSlot);
         }
 
@@ -91,7 +91,7 @@ public class PlayerWeaponsController : MonoBehaviour
     {
         if (!instantiatedFirearms.TryGetValue(weaponSlot, out var instance))
         {
-            Debug.Log("Drop Weapon: no other weapon found on this slot");
+            // Debug.Log("Drop Weapon: no other weapon found on this slot");
             return;
         }
 
@@ -114,7 +114,7 @@ public class PlayerWeaponsController : MonoBehaviour
         instantiatedFirearms.Remove(weaponSlot);
         Destroy(instance.gameObject);
         
-        Debug.Log("Drop Weapon From Slot: dropped weapon on the ground");
+        // Debug.Log("Drop Weapon From Slot: dropped weapon on the ground");
     }
     
     // add it to inventory and instantiated firearms
@@ -143,7 +143,7 @@ public class PlayerWeaponsController : MonoBehaviour
         {
             activeFirearm.isEquipped = false; 
             activeFirearm.gameObject.SetActive(false);
-            Debug.Log("Switch Weapon Slot: last active firearm deactivated");
+            // Debug.Log("Switch Weapon Slot: last active firearm deactivated");
         }
         
         // activate from firearms instances dictionary
@@ -155,7 +155,7 @@ public class PlayerWeaponsController : MonoBehaviour
             activeFirearm = firearm;
         
             GameUI.Instance.UpdateBulletsUI();
-            Debug.Log("Switch Weapon Slot: current active firearm activated");
+            // Debug.Log("Switch Weapon Slot: current active firearm activated");
         }
         
         // todo activate knife

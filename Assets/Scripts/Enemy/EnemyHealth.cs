@@ -8,43 +8,63 @@ public class EnemyHealth : MonoBehaviour, IDamageable
     [SerializeField] private Slider healthBar;
     [SerializeField] private TextMeshProUGUI tmp;
     
-    public float health = 100f;
-    private float maxHealth = 100f;
+    [Header("Stats")]
+    [SerializeField] private float maxHealth = 100f;
+    [HideInInspector] public float health;
+    
+    private EnemyCombatAI combatAI;
     
     // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+   
+    void Awake()
     {
-        if (tmp)
-            tmp.text = "HP: " + health;
+        health = maxHealth;
+        combatAI = GetComponentInParent<EnemyCombatAI>();
     }
     
-    public void TakeDamage(float amount)
+    void Start()
     {
-        health -= amount;
-        
-        GetComponentInParent<EnemyCombatAI>()?.RegisterTookDamage();
-        
-        if (healthBar)
-            healthBar.value = health / maxHealth;
-        
-        if (tmp != null && tmp.gameObject.activeInHierarchy)
-            tmp.text = "HP: " + health;
+        UpdateUI();
+    }
+    
+    public void TakeDamage(float amount, Vector3 attackerPos)
+    {
+        health = Mathf.Max(0f, health - amount);
+
+        // notify combat AI
+        combatAI?.RegisterTookDamage();
+
+        UpdateUI();
 
         if (health <= 0f)
         {
-            if (PlayerController.Instance != null)
-            {
-                PlayerController.Instance.kills++;
-                PlayerController.Instance.money += PlayerController.Instance.moneyPerKill;
-            }
-            
-            GameUI.Instance.UpdateKillsUI();
-            GameUI.Instance.UpdateMoneyUI();
-            
-            Die();
+            OnDeath();
         }
     }
     
+    private void UpdateUI()
+    {
+        if (healthBar)
+            healthBar.value = health / maxHealth;
+
+        if (tmp != null && tmp.gameObject.activeInHierarchy)
+            tmp.text = "HP: " + health;
+    }
+
+    private void OnDeath()
+    {
+        if (PlayerController.Instance != null)
+        {
+            PlayerController.Instance.kills++;
+            PlayerController.Instance.money += PlayerController.Instance.moneyPerKill;
+        }
+
+        GameUI.Instance.UpdateKillsUI();
+        GameUI.Instance.UpdateMoneyUI();
+
+        Die();
+    }
+
     private void Die()
     {
         Destroy(gameObject);

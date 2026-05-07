@@ -21,5 +21,5 @@ MonoBehaviour:
   firearmPickupPrefab: {fileID: 4784104299628431976, guid: 6af37491f6f5466479659bf4927902e3, type: 3}
   damage: 5
   bullets: 512
-  fireRate: 0.8
+  fireRate: 0.2
   fireRange: 20
