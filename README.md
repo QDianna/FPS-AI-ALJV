@@ -161,7 +161,7 @@ The environment is implemented in **Unity** and includes:
 
 
 
-## Evaluation Metrics
+## Evaluation
 
 The AI performance is evaluated using the following metrics:
 
@@ -176,7 +176,7 @@ The comparison is performed between:
 
 
 
-## Development Roadmap
+## Project Milestones
 
 ### Milestone 1
 - define and propose the project concept
