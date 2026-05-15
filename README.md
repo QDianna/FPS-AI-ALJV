@@ -2,13 +2,13 @@
 
 ## Overview
 
-This project focuses on designing and implementing an intelligent enemy agent for a First-Person Shooter (FPS) game, with an emphasis on decision-making and adaptive combat behavior.
+This project focuses on the design and implementation of an intelligent enemy agent for a First-Person Shooter (FPS) game, with an emphasis on adaptive decision-making and combat behavior optimization.
 
-The approach is **hybrid**:
-- **Behavior Tree (BT)** for high-level decision making
+The proposed approach is hybrid and combines:
+- **Behavior Trees (BT)** for high-level strategic decision-making
 - **Reinforcement Learning (RL)** for low-level combat optimization
 
-The goal is to move from rule-based AI to a system capable of adapting its combat strategy based on interaction with the player.
+The main objective is to transition from static rule-based AI to an adaptive system capable of improving its combat strategies through interaction with the player.
 
 
 
@@ -16,71 +16,90 @@ The goal is to move from rule-based AI to a system capable of adapting its comba
 
 FPS environments are dynamic, partially observable, and require fast decision-making under uncertainty.
 
-The project builds on an existing Unity prototype where:
+The project is built upon an existing Unity prototype in which:
 - the player can move, aim, and shoot
-- enemies can navigate using NavMesh and shoot using raycasting
-- current enemy behavior is rule-based
+- enemy agents can navigate using NavMesh
+- enemies can attack using a raycast-based shooting system
+- current enemy behavior is entirely rule-based
 
-This provides a controlled environment to integrate and evaluate learning-based AI.
+This environment provides a controlled framework for integrating and evaluating learning-based AI techniques.
 
 
 
 ## Project Goals
 
-The main objective is to design an AI agent that improves its combat behavior over time.
+The primary goal of the project is to design an AI agent capable of improving its combat effectiveness over time.
 
 ### Objectives
 
-1. Implement a **Behavior Tree** for macro-level decisions
-2. Integrate **Reinforcement Learning (Q-learning)** for combat behavior
-3. Replace static rule-based combat with adaptive decision-making
-4. Analyze how reward design influences learned behavior
-5. Compare baseline AI vs hybrid AI performance
+1. Implement a **Behavior Tree** for macro-level decision-making
+2. Integrate **Q-learning** for combat behavior optimization
+3. Replace static combat logic with adaptive decision-making mechanisms
+4. Analyze how reward function design influences learned behavior
+5. Compare the performance of rule-based AI against hybrid BT + RL AI
 
 
 
 ## System Architecture
 
-The AI is structured on two decision layers:
+The AI architecture is divided into two decision-making layers.
 
 ### 1. Behavior Tree (High-Level Control)
 
-The Behavior Tree manages global agent states:
+The Behavior Tree manages the global behavioral states of the agent:
 
 - **Patrol** – no player detected
-- **Chase** – player detected but outside attack range
-- **Search** – lost line-of-sight to player
-- **Attack** – player in range and visible
-- **Retreat** – low health
+- **Chase** – player detected, but outside attack range
+- **Search** – player lost from line of sight
+- **Attack** – player visible and within attack range
+- **HitReact** – player not visible, but the agent recently received damage
+- **Retreat** – low health condition
 
-Transitions are based on:
-- distance to player
-- line-of-sight (LOS)
-- agent health
+State transitions are determined by:
+- line of sight to the player
+- distance between the agent and the player
+- whether the agent recently received damage
+- whether the player was seen in the last few seconds
+- the current health level of the agent
 
-This layer is deterministic and does not use learning.
+This layer is deterministic and does not involve learning.
 
 
 
 ### 2. Reinforcement Learning (Combat Layer)
 
-Inside the **Attack** state, the agent uses RL to select actions.
+Inside the **Attack** state, the agent uses Reinforcement Learning to select combat actions.
 
-The learning algorithm used is:
-- **Q-learning (tabular, discrete state space)**
+The selected reinforced learning method is Q-learning.
+The Q-learning method includes:
+- a discrete state representation
+- a reward function for evaluating combat behavior
+- a Q-table used to store and update state-action values
 
 
 
 ## Reinforcement Learning Design
 
-### State Representation (discrete)
+### State Representation (Discrete)
 
-The continuous game state is discretized into:
+The continuous game state is discretized into the following parameters:
 
-- distance: `close / mid / far`
-- health: `low / high`
-- player visible: `true / false`
-- recent damage:
+- distance to the player:
+  - `close`
+  - `medium`
+  - `far`
+
+- agent health:
+  - `low`
+  - `medium`
+  - `high`
+
+- player health:
+  - `low`
+  - `medium`
+  - `high`
+
+- recent combat events:
   - `tookDamage`
   - `gaveDamage`
 
@@ -88,14 +107,14 @@ The continuous game state is discretized into:
 
 ### Action Space
 
-The agent selects from predefined combat actions:
+The agent selects actions from a predefined combat action set:
 
-- `ShootStanding`
 - `StrafeLeftShoot`
 - `StrafeRightShoot`
 - `PushForwardShoot`
 - `BackOffShoot`
-- `HoldPosition`
+- `MaintainDistanceShoot`
+- `HoldPositionShoot`
 
 Each action is executed for a short fixed duration.
 
@@ -103,29 +122,28 @@ Each action is executed for a short fixed duration.
 
 ### Reward Function
 
-The reward is designed to encourage effective combat behavior:
+The reward function is designed to encourage efficient combat behavior by considering:
 
-- +10 → successful hit
-- -10 → damage received
-- -1  → idle / ineffective action
-- + small bonus → maintaining optimal distance (optional)
+- damage dealt versus damage received, encouraging aggressive or defensive strategies depending on the combat situation
+- distance to the player, encouraging maintenance of an effective combat range
+- relative health levels, allowing the agent to adapt its behavior depending on combat advantage
 
 
 
 ### Learning Policy
 
-The agent uses an **ε-greedy policy**:
+The agent follows an **ε-greedy policy**:
 
-- with probability ε → explore (random action)
-- otherwise → exploit (best known action)
+- with probability `ε` → exploration (random action)
+- otherwise → exploitation (best known action)
 
 
 
 ### Q-Update Rule
 
-The Q-values are updated using the standard Q-learning formula:
+The state-action values are iteratively updated using the standard Q-learning update rule:
 
-Q(s, a) = Q(s, a) + α * (reward + γ * max(Q(s', a')) - Q(s, a))
+:contentReference[oaicite:0]{index=0}
 
 
 
@@ -137,51 +155,60 @@ The environment is implemented in **Unity** and includes:
 - enemy agents
 - NavMesh navigation
 - raycast-based shooting system
-- visibility detection (line-of-sight)
-
-Experiments are conducted in controlled scenarios (e.g. 1v1 combat in a simple map).
+- line-of-sight visibility detection
+- environmental obstacles affecting visibility
+- enemy and player bases
 
 
 
 ## Evaluation Metrics
 
-The AI performance is evaluated using:
+The AI performance is evaluated using the following metrics:
 
-- hit accuracy
-- damage dealt vs damage received
+- damage dealt versus damage received
 - survival time
 - kill rate
-- behavioral consistency
+- ability to maintain line of sight with the player
 
-Comparison is made between:
+The comparison is performed between:
 - baseline rule-based AI
-- hybrid BT + RL agent
+- hybrid BT + RL AI
 
 
 
 ## Development Roadmap
 
+### Milestone 1
+- define and propose the project concept
+
+### Milestone 2
+- set up the development environment
+- implement the core game mechanics
+
 ### Milestone 3
-- integrate Q-learning into Attack behavior
-- basic state/action/reward implementation
-- demonstrate learning loop
+- integrate the Behavior Tree into the macro-level behavior logic
+- integrate Q-learning into the micro-level combat logic
+- define the representation of the current game state
+- design the reward function for desired combat behavior
 
 ### Milestone 4
-- refine reward function
+- refine the reward function
 - improve state representation
-- analyze behavior patterns
+- analyze learned behavior patterns
 
 ### Final Stage
-- optimize policy
-- optional: extend to function approximation (e.g. neural networks)
-- document experimental results
+- optimize the learned policy
+- optionally extend the system using function approximation methods (e.g., neural networks)
+- document and analyze experimental results
 
 
 
 ## Conclusion
 
-This project demonstrates how combining classical AI techniques (Behavior Trees) with learning-based methods (Reinforcement Learning) can produce more adaptive and realistic enemy behavior in FPS games.
+This project demonstrates how combining classical AI techniques, such as Behavior Trees, with learning-based methods, such as Q-learning, can produce more adaptive and realistic enemy behavior in FPS games.
 
-The hybrid approach allows:
-- structured decision-making at a strategic level
-- adaptive optimization at a tactical level
+The hybrid architecture enables:
+- structured strategic decision-making
+- adaptive tactical behavior optimization
+
+The proposed system aims to provide more dynamic and less predictable enemy interactions compared to traditional rule-based FPS AI systems.
