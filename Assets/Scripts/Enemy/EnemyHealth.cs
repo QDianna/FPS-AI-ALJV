@@ -1,3 +1,5 @@
+using System;
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -10,45 +12,42 @@ public class EnemyHealth : MonoBehaviour, IDamageable
     
     [Header("Stats")]
     [SerializeField] private float maxHealth = 100f;
-    [HideInInspector] public float health;
     
-    private EnemyCombatAI combatAI;
-    
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-   
-    void Awake()
-    {
-        health = maxHealth;
-        combatAI = GetComponentInParent<EnemyCombatAI>();
-    }
+    public event Action<float, Vector3> OnDamageTaken;
     
     void Start()
     {
+        health = maxHealth;
+        
         UpdateUI();
     }
+    
     
     public void TakeDamage(float amount, Vector3 attackerPos)
     {
         health = Mathf.Max(0f, health - amount);
-
-        // notify combat AI
-        combatAI?.RegisterTookDamage();
-
-        UpdateUI();
-
+        
         if (health <= 0f)
         {
+            health = maxHealth;
             OnDeath();
+            return;
         }
+        
+        OnDamageTaken?.Invoke(amount, attackerPos);
+        
+        UpdateUI();
     }
-    
+
+    public float health { get; set; }
+
     private void UpdateUI()
     {
         if (healthBar)
             healthBar.value = health / maxHealth;
 
         if (tmp != null && tmp.gameObject.activeInHierarchy)
-            tmp.text = "HP: " + health;
+            tmp.text = health + " HP";
     }
 
     private void OnDeath()
@@ -62,12 +61,15 @@ public class EnemyHealth : MonoBehaviour, IDamageable
         GameUI.Instance.UpdateKillsUI();
         GameUI.Instance.UpdateMoneyUI();
 
-        Die();
+        Debug.Log("Enemy dead, resetting episode...");
+        GameManager.Instance.ResetEpisode();
     }
-
-    private void Die()
+    
+    
+    public void ResetHealth()
     {
-        Destroy(gameObject);
+        health = maxHealth;
+        UpdateUI();
     }
 }
 

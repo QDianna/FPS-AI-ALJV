@@ -50,6 +50,8 @@ public class PlayerWeaponsController : MonoBehaviour
             GameUI.Instance.OnSlotFull(slot, activeFirearm.data.itemIcon);
 
             activeUtility = null;
+            
+            instantiatedFirearms.Add(slot, activeFirearm);
         }
         else
         {
@@ -59,6 +61,7 @@ public class PlayerWeaponsController : MonoBehaviour
             GameUI.Instance.OnSlotSelected(activeSlot);
         }
     }
+    
     
     public bool PickupFirearm(FirearmData pickupData)
     {
@@ -108,7 +111,7 @@ public class PlayerWeaponsController : MonoBehaviour
             Quaternion.identity
         );
         
-        pickupFirearm.GetComponent<WeaponPickup>().remainingBullets = instance.bullets;
+        // pickupFirearm.GetComponent<WeaponPickup>().remainingBullets = instance.bullets;
         
         Inventory.Instance.RemoveItem(data);
         instantiatedFirearms.Remove(weaponSlot);

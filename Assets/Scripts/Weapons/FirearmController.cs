@@ -1,82 +1,134 @@
+using System;
 using UnityEngine;
 
 public class FirearmController : MonoBehaviour
 {
     [Header("References")]
-    public Transform firePoint;
-    [SerializeField] private ParticleSystem muzzleFlash;
-    [SerializeField] private GameObject tracerPrefab;
-    [SerializeField] private AudioSource audioSource;
+    [SerializeField] private Transform firePoint;
+
+    [Header("Weapon")]
+    [SerializeField] public FirearmData data;
+
     [SerializeField] private LayerMask hitMask;
-    
-    public FirearmData data;
-    
-    private float nextFireTimer;
-    public float bullets;
-    
+
+    [Header("Visuals")]
+    [SerializeField] private ParticleSystem muzzleFlash;
+
     [SerializeField] private Animator animator;
+
+    [SerializeField] private GameObject tracerPrefab;
+
     [SerializeField] private AudioClip shootSound;
-    
-    public bool isEquipped;     // for animator
-    
-    public void Start()
+
+    [SerializeField] private AudioSource audioSource;
+
+    [Header("State")]
+    [SerializeField] public bool isEquipped;
+
+    private float nextFireTimer;
+
+    public event Action<float> OnDamageDealt;
+    public event Action OnShotsFired; 
+
+    void Start()
     {
         if (!animator)
             animator = GetComponent<Animator>();
-        
+
         animator.SetBool("isEquipped", isEquipped);
-
-        bullets = data.bullets;
     }
-    
-    // called from input callback
-    public void Fire(Vector3 origin, Vector3 direction)
-    {
-        if (Time.time < nextFireTimer) return;
-        if (bullets <= 0f) return;
 
-        nextFireTimer = Time.time + data.fireRate;
-        bullets--;
+    public bool CanFire()
+    {
+        return Time.time >= nextFireTimer;
+    }
+
+    public bool Fire(Vector3 direction)
+    {
+        if (!CanFire())
+            return false;
+
+        nextFireTimer =
+            Time.time + data.fireRate;
+
+        direction.Normalize();
 
         animator.SetTrigger("shoot");
 
+        OnShotsFired?.Invoke();
+        
         RaycastHit hit;
-        
-        bool hasHit = Physics.Raycast(origin, direction, out hit, data.fireRange, hitMask);
-        Vector3 endPoint = hasHit ? hit.point : origin + direction * data.fireRange;
 
-        // Debug.Log(hasHit ? $"Hit: {hit.collider.name}" : "Miss");
-        
-        // damage
-        if (hasHit && hit.collider.TryGetComponent<IDamageable>(out var dmg))
+        bool hasHitSomething =
+            Physics.Raycast(
+                firePoint.position,
+                direction,
+                out hit,
+                30f,
+                hitMask
+            );
+
+        Vector3 endPoint =
+            hasHitSomething
+                ? hit.point
+                : firePoint.position + direction * 30f;
+
+        bool hasHit = false;
+        if (hasHitSomething)
         {
-            dmg.TakeDamage(data.damage, transform.forward);
-            GetComponentInParent<EnemyCombatAI>()?.RegisterGaveDamage();
+            if (hit.collider.TryGetComponent<IDamageable>(
+                    out var damageable))
+            {
+                damageable.TakeDamage(
+                    data.damage,
+                    direction
+                );
 
+                OnDamageDealt?.Invoke(data.damage);
+
+                hasHit = true;
+            }
         }
 
-        // tracer
-        if (tracerPrefab)
-        {
-            Vector3 tracerDirection = (endPoint - firePoint.position).normalized;
-            Vector3 tracerEndPoint = firePoint.position + tracerDirection * Vector3.Distance(firePoint.position, endPoint);
-            
-            var tracer = Instantiate(tracerPrefab, firePoint.position, firePoint.rotation);
-            tracer.GetComponent<ProjectileVisual>().Init(tracerEndPoint);
-        }
+        SpawnTracer(direction, endPoint);
+        PlayEffects();
+        
+        return hasHit;
+    }
 
-        // VFX + SFX
-        if (muzzleFlash) muzzleFlash.Play();
-        if (audioSource && shootSound) audioSource.PlayOneShot(shootSound);
+    private void SpawnTracer(
+        Vector3 direction,
+        Vector3 endPoint)
+    {
+        if (!tracerPrefab)
+            return;
+
+        var tracer =
+            Instantiate(
+                tracerPrefab,
+                firePoint.position,
+                Quaternion.LookRotation(direction)
+            );
+
+        tracer
+            .GetComponent<ProjectileVisual>()
+            .Init(endPoint);
+    }
+
+    private void PlayEffects()
+    {
+        if (muzzleFlash)
+            muzzleFlash.Play();
+
+        if (audioSource && shootSound)
+            audioSource.PlayOneShot(shootSound);
     }
 
     void LateUpdate()
     {
         if (!isEquipped)
             return;
-        
-        // animate inventory weapons
+
         animator.SetBool("isEquipped", isEquipped);
     }
-    
 }

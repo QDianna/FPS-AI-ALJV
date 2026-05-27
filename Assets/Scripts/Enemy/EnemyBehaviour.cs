@@ -1,38 +1,35 @@
 using UnityEngine;
+using UnityEngine.AI;
 
 public enum State
 {
-    Patrol,
-    Chase,
-    Search,
-    Attack,
-    HitReact,
+    Patrol,     // no LOS + no info
+    Attack,     // has LOS => RL combat
+    Search,     // lost LOS => investigate last known position
+    HitReact,   // got hit without LOS => investigate hit direction
     Retreat
 }
-
 
 public class EnemyBehaviour : MonoBehaviour
 {
     [Header("References")]
     [SerializeField] private Transform player;
-    [SerializeField] private Transform[] points;
+    [SerializeField] private Transform[] wayPoints;
     [SerializeField] private Transform retreatPoint;
 
-    [SerializeField] private EnemyMovementAI movement;
-    [SerializeField] private EnemyHealth healthSystem;
-    [SerializeField] private EnemyCombatAI combatSystem;
+    public EnemyMovementAI movement;
+    public EnemyHealth healthSystem;
+    public EnemyCombatAI combatSystem;
     
     [Header("Parameters")]
-    [SerializeField] private float attackRange = 10f;
     [SerializeField] private float waypointTolerance = 0.5f;
     [SerializeField] private float searchDuration = 5f;
     
     [Header("Debug")]
     [SerializeField] private bool debugBehaviour = true;
-    
-    [Header("Hit React")]
-    [SerializeField] private float hitReactDuration = 1f;
+   
     private float hitReactTimer;
+    private float hitReactDuration = 3f;
     private Vector3 hitDirection;
 
     // search variables
@@ -50,6 +47,8 @@ public class EnemyBehaviour : MonoBehaviour
         movement = GetComponent<EnemyMovementAI>();
         healthSystem = GetComponent<EnemyHealth>();
         combatSystem = GetComponent<EnemyCombatAI>();
+       
+        healthSystem.OnDamageTaken += HandleDamageTaken;
     }
 
     void Update()
@@ -64,7 +63,6 @@ public class EnemyBehaviour : MonoBehaviour
     {
         if (TryRetreat()) return;
         if (TryAttack()) return;
-        if (TryChase()) return;
         if (TrySearch()) return;
         if (TryHitReact()) return;
 
@@ -86,7 +84,7 @@ public class EnemyBehaviour : MonoBehaviour
 
     bool TryAttack()
     {
-        if (CanSeePlayer() && InAttackRange())
+        if (CanSeePlayer())
         {
             SetState(State.Attack);
             combatSystem.TickCombat();
@@ -95,17 +93,6 @@ public class EnemyBehaviour : MonoBehaviour
         return false;
     }
 
-    bool TryChase()
-    {
-        if (CanSeePlayer())
-        {
-            SetState(State.Chase);
-            ChaseUpdate();
-            return true;
-        }
-        return false;
-    }
-    
     bool TrySearch()
     {
         bool recentlySeen = Time.time - lastTimeSeen < searchDuration;
@@ -116,6 +103,7 @@ public class EnemyBehaviour : MonoBehaviour
             SearchUpdate();
             return true;
         }
+
         return false;
     }
     
@@ -145,7 +133,7 @@ public class EnemyBehaviour : MonoBehaviour
             return;
 
         if (debugBehaviour)
-            Debug.Log($"[BT] {currentState} -> {newState}");
+            Debug.Log($"************** [ENEMY BEHAVIOUR] {currentState} -> {newState} ************** ");
 
         OnStateExit(currentState);
         currentState = newState;
@@ -154,36 +142,31 @@ public class EnemyBehaviour : MonoBehaviour
 
     void OnStateEnter(State state)
     {
-        /*
-        if (debugBehaviour)
-            Debug.Log($"[STATE ENTER] {state}");
-        */
-
         switch (state)
         {
             case State.Attack:
-                movement.SetMode_NavMeshManual();
-                movement.SetLookTarget(player);
                 combatSystem.EnterCombat();
+
+                break;
+
+            case State.Search:
+
+                searchTimer = 0f;
+                
+                combatSystem.ExitCombat();
+
                 break;
 
             case State.HitReact:
-                movement.SetMode_NavMeshManual();
-                movement.Stop();
-                movement.SetLookDirection(hitDirection);
+                
                 combatSystem.ExitCombat();
+
                 break;
-            
-            case State.Search:
-                searchTimer = 0f;
-                movement.SetMode_NavMeshFollow();
-                movement.SetLookTarget(player);
-                break;
-            
+
             default:
-                movement.SetMode_NavMeshFollow();
-                movement.SetRotationAuto();
+
                 combatSystem.ExitCombat();
+
                 break;
         }
     }
@@ -192,10 +175,6 @@ public class EnemyBehaviour : MonoBehaviour
     {
         if (state == State.HitReact)
             hitReactTimer = 0;
-        /*
-         if (debugBehaviour)
-            Debug.Log($"[STATE EXIT] {state}");
-         */
     }
     
     void UpdatePerception()
@@ -213,30 +192,34 @@ public class EnemyBehaviour : MonoBehaviour
     {
         hitReactTimer -= Time.deltaTime;
 
-        // menține orientarea (important dacă rotația e lentă)
         movement.SetLookDirection(hitDirection);
     }
     
     void PatrolUpdate()
     {
-        if (points.Length == 0) return;
+        if (wayPoints.Length == 0) return;
 
         if (movement.HasReachedDestination(waypointTolerance))
         {
-            waypointIndex = (waypointIndex + 1) % points.Length;
-            movement.GoTo(points[waypointIndex].position);
+            waypointIndex = (waypointIndex + 1) % wayPoints.Length;
+            movement.GoTo(wayPoints[waypointIndex].position);
         }
     }
 
-    void ChaseUpdate()
+    void SearchUpdate()
     {
-        float desiredDistance = 3f;
-        
-        Vector3 toEnemy = (transform.position - player.position).normalized;
-        Vector3 desiredPos = player.position + toEnemy * desiredDistance;
+        movement.GoTo(lastKnownPlayerPos);
 
-        if (movement.GetClosestNavMeshPoint(desiredPos, out Vector3 validPos))
-            movement.GoTo(validPos);
+        if (movement.HasReachedDestination(waypointTolerance))
+        {
+            searchTimer += Time.deltaTime;
+
+            if (searchTimer >= searchDuration)
+            {
+                searchTimer = 0f;
+                lastTimeSeen = -999f;
+            }
+        }
     }
 
     void RetreatUpdate()
@@ -244,47 +227,60 @@ public class EnemyBehaviour : MonoBehaviour
         movement.GoTo(retreatPoint.position);
     }
 
-    void SearchUpdate()
-    {
-        if (!movement.HasReachedDestination(waypointTolerance))
-        {
-            movement.GoTo(lastKnownPlayerPos);
-            return;
-        }
-
-        searchTimer += Time.deltaTime;
-
-        if (searchTimer >= searchDuration)
-        {
-            searchTimer = 0f;
-            lastTimeSeen = -999f;
-        }
-    }
-
     // ----------------------------------------- CONDITIONS ----------------------------------------- //
-    
-    bool InAttackRange() =>
-        Vector3.Distance(transform.position, player.position) <= attackRange;
 
     bool CanSeePlayer()
         => combatSystem.CanSeePlayer();
-
-    // ----------------------------------------- EVENTS ----------------------------------------- //
-
-    public void OnHit(Vector3 source)
+    
+    void HandleDamageTaken(float amount, Vector3 attackerPos)
     {
-        hitDirection = (source - transform.position);
+        OnHit(attackerPos);
+    }
+
+    public void OnHit(Vector3 attackerPos)
+    {
+        if (currentState == State.Attack)
+            return;
+
+        if (CanSeePlayer())
+            return;
+
+        hitDirection =
+            attackerPos - transform.position;
+
         hitDirection.y = 0f;
 
-        if (hitDirection.sqrMagnitude > 0.001f)
-            hitDirection.Normalize();
+        if (hitDirection.sqrMagnitude < 0.001f)
+            return;
+
+        hitDirection.Normalize();
 
         hitReactTimer = hitReactDuration;
 
-        /*
-        if (debugBehaviour)
-            Debug.Log("[BT] HIT REACTION TRIGGERED");
-        */
+        Debug.Log(
+            $"[HIT REACT] Looking toward hit direction"
+        );
     }
+    
+    // ----------------------------------------- EVENTS ----------------------------------------- //
+
+    public void ResetAI()
+    {
+        currentState = State.Patrol;
+
+        lastKnownPlayerPos = Vector3.zero;
+        lastTimeSeen = -999f;
+
+        searchTimer = 0f;
+
+        hitReactTimer = 0f;
+        hitDirection = Vector3.zero;
+
+        waypointIndex = 0;
+
+        combatSystem.ResetCombat();
+    }
+    
 }
+
 

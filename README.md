@@ -2,213 +2,333 @@
 
 ## Overview
 
-This project focuses on the design and implementation of an intelligent enemy agent for a First-Person Shooter (FPS) game, with an emphasis on adaptive decision-making and combat behavior optimization.
+This project implements an adaptive enemy AI system for a First-Person Shooter (FPS) game in Unity.
 
-The proposed approach is hybrid and combines:
-- **Behavior Trees (BT)** for high-level strategic decision-making
-- **Reinforcement Learning (RL)** for low-level combat optimization
+The architecture combines:
+- **Behavior Trees (BT)** for high-level enemy behavior
+- **Q-learning** for adaptive tactical combat decisions
 
-The main objective is to transition from static rule-based AI to an adaptive system capable of improving its combat strategies through interaction with the player.
+The objective is to create an enemy capable of learning effective combat positioning and combat responses instead of relying entirely on scripted behavior.
 
-
-
-## Motivation
-
-FPS environments are dynamic, partially observable, and require fast decision-making under uncertainty.
-
-The project is built upon an existing Unity prototype in which:
-- the player can move, aim, and shoot
-- enemy agents can navigate using NavMesh
-- enemies can attack using a raycast-based shooting system
-- current enemy behavior is entirely rule-based
-
-This environment provides a controlled framework for integrating and evaluating learning-based AI techniques.
-
-
-
-## Project Goals
-
-The primary goal of the project is to design an AI agent capable of improving its combat effectiveness over time.
-
-### Objectives
-
-1. Implement a **Behavior Tree** for macro-level decision-making
-2. Integrate **Q-learning** for combat behavior optimization
-3. Replace static combat logic with adaptive decision-making mechanisms
-4. Analyze how reward function design influences learned behavior
-5. Compare the performance of rule-based AI against hybrid BT + RL AI
-
-
+---
 
 ## System Architecture
 
-The AI architecture is divided into two decision-making layers.
+The AI is divided into two layers:
 
-### 1. Behavior Tree (High-Level Control)
+### Behavior Tree (Macro Layer)
 
-The Behavior Tree manages the global behavioral states of the agent:
+The Behavior Tree controls the global enemy behavior flow:
 
-- **Patrol** – no player detected
-- **Chase** – player detected, but outside attack range
-- **Search** – player lost from line of sight
-- **Attack** – player visible and within attack range
-- **HitReact** – player not visible, but the agent recently received damage
-- **Retreat** – low health condition
+- Patrol
+- Chase
+- Search
+- Attack
+- Retreat
+- HitReact
 
-State transitions are determined by:
-- line of sight to the player
-- distance between the agent and the player
-- whether the agent recently received damage
-- whether the player was seen in the last few seconds
-- the current health level of the agent
+State transitions are based on:
+- line of sight
+- distance to the player
+- visibility memory
+- recent damage received
+- enemy health
 
-This layer is deterministic and does not involve learning.
+This layer handles:
+- navigation
+- state transitions
+- high-level combat flow
 
+The BT is deterministic and acts as the decision framework around the reinforcement learning system.
 
+---
 
-### 2. Reinforcement Learning (Combat Layer)
+### Reinforcement Learning (Combat Layer)
 
-Inside the **Attack** state, the agent uses Reinforcement Learning to select combat actions.
+Inside the `Attack` state, the enemy uses **Q-learning** to select tactical combat actions.
 
-The selected reinforced learning method is Q-learning.
-The Q-learning method includes:
-- a discrete state representation
-- a reward function for evaluating combat behavior
-- a Q-table used to store and update state-action values
+Instead of hardcoding combat movement patterns, the agent learns:
+- when to push aggressively
+- when to retreat
+- when to hold position for stable aim
+- when to strafe under pressure
 
+The combat behavior emerges from reward shaping and combat outcomes.
 
+---
 
 ## Reinforcement Learning Design
 
-### State Representation (Discrete)
+### State Representation
 
-The continuous game state is discretized into the following parameters:
+The combat state is discretized using three contextual dimensions.
 
-- distance to the player:
-  - `close`
-  - `medium`
-  - `far`
+### Combat Advantage
 
-- agent health:
-  - `low`
-  - `medium`
-  - `high`
+Represents the current combat outcome tendency:
 
-- player health:
-  - `low`
-  - `medium`
-  - `high`
+- `Winning`
+- `Even`
+- `Losing`
 
-- recent combat events:
-  - `tookDamage`
-  - `gaveDamage`
+The value is computed using:
+- damage dealt
+- damage received
+- current combat performance
 
+---
 
+### Distance State
 
-### Action Space
+Represents tactical engagement distance:
 
-The agent selects actions from a predefined combat action set:
+- `TooClose`
+- `Close`
+- `Medium`
+- `Far`
 
-- `StrafeLeftShoot`
-- `StrafeRightShoot`
-- `PushForwardShoot`
-- `BackOffShoot`
-- `MaintainDistanceShoot`
-- `HoldPositionShoot`
+The RL agent learns different movement strategies depending on engagement range.
 
-Each action is executed for a short fixed duration.
+---
 
+### Pressure State
 
+Represents combat pressure:
 
-### Reward Function
+- `Safe`
+- `UnderFire`
 
-The reward function is designed to encourage efficient combat behavior by considering:
+This state is triggered when the enemy receives recent damage and is used to model short-term combat pressure.
 
-- damage dealt versus damage received, encouraging aggressive or defensive strategies depending on the combat situation
-- distance to the player, encouraging maintenance of an effective combat range
-- relative health levels, allowing the agent to adapt its behavior depending on combat advantage
+---
 
+### Total State Space
 
+The final RL state space contains:
 
-### Learning Policy
+```text
+3 advantages × 4 distance states × 2 pressure states = 24 states
+```
 
-The agent follows an **ε-greedy policy**:
+---
 
-- with probability `ε` → exploration (random action)
-- otherwise → exploitation (best known action)
+## Action Space
 
+The agent can select the following tactical actions:
 
+- `AggressivePush`
+- `DefensiveRetreat`
+- `HoldPosition`
+- `StrafeLeft`
+- `StrafeRight`
 
-### Q-Update Rule
+Actions are selected using an epsilon-greedy Q-learning policy.
 
-The state-action values are iteratively updated using the standard Q-learning update rule:
+---
 
-:contentReference[oaicite:0]{index=0}
+## Valid Action Filtering
 
+A major problem in the initial implementation was that the RL state did not contain information about world geometry.
 
+This caused the agent to potentially learn invalid actions such as:
+- strafing into walls
+- retreating into obstacles
+- selecting unreachable movement directions
 
-## Environment Setup
+To solve this, a valid-action filtering system was introduced using NavMesh validation.
 
-The environment is implemented in **Unity** and includes:
+The RL agent now selects actions only from movement options that are physically reachable in the current combat context.
 
-- player controller (movement, aiming, shooting)
-- enemy agents
-- NavMesh navigation
-- raycast-based shooting system
-- line-of-sight visibility detection
-- environmental obstacles affecting visibility
-- enemy and player bases
+---
 
+## Aim and Accuracy System
 
+Combat accuracy is simulated using a dynamic spread system.
 
-## Evaluation
+Weapon spread depends on:
+- engagement distance
+- movement velocity
+- current aiming stability
 
-The AI performance is evaluated using the following metrics:
+This creates a direct relationship between:
+- movement
+- positioning
+- combat effectiveness
 
-- damage dealt versus damage received
-- survival time
-- kill rate
-- ability to maintain line of sight with the player
+### Spread Behavior
 
-The comparison is performed between:
-- baseline rule-based AI
-- hybrid BT + RL AI
+- close range → lower spread
+- long range → higher spread
+- stationary aim → higher accuracy
+- movement → reduced accuracy
 
+This forces the RL system to balance:
+- tactical repositioning
+- aim stability
 
+instead of rewarding movement alone.
 
-## Project Milestones
+---
 
-### Milestone 1
-- define and propose the project concept
+## Reward Function
 
-### Milestone 2
-- set up the development environment
-- implement the core game mechanics
+The reward system evaluates the outcome of combat decisions rather than rewarding predefined actions.
 
-### Milestone 3
-- integrate the Behavior Tree into the macro-level behavior logic
-- integrate Q-learning into the micro-level combat logic
-- define the representation of the current game state
-- design the reward function for desired combat behavior
+The reward combines:
+- damage dealt
+- damage received
+- shot accuracy
+- movement spread
+- tactical repositioning quality
 
-### Milestone 4
-- refine the reward function
-- improve state representation
-- analyze learned behavior patterns
+---
 
-### Final Stage
-- optimize the learned policy
-- optionally extend the system using function approximation methods (e.g., neural networks)
-- document and analyze experimental results
+### Accuracy Reward
 
+Accuracy is computed using:
 
+```text
+hits / shots fired
+```
+
+This rewards actions that produce effective shooting performance rather than random movement.
+
+---
+
+### Tactical Repositioning
+
+The system evaluates whether movement improved tactical positioning.
+
+Instead of checking only discrete state transitions such as:
+
+```text
+Far → Medium
+```
+
+the reward shaping also uses continuous distance evaluation:
+
+```text
+deltaDistance = oldDistance - newDistance
+```
+
+This allows the agent to detect meaningful tactical repositioning even when remaining inside the same discrete distance state.
+
+Examples:
+- pushing closer while `Far`
+- creating distance while `Losing`
+- avoiding overextension into `TooClose`
+
+---
+
+### Context-Aware Movement Evaluation
+
+Movement penalties are not applied equally in every context.
+
+Examples:
+- `Winning + Far` → moving closer is encouraged
+- `Losing + Close` → retreating becomes valuable
+
+This allows movement spread penalties to be partially tolerated when repositioning improves tactical combat positioning.
+
+---
+
+## Q-Learning
+
+The project uses a standard Q-learning update rule:
+
+```text
+Q(s,a) =Q(s,a) +α * (reward +γ * maxFutureQ -Q(s,a))
+```
+
+Where:
+- `α` = learning rate
+- `γ` = discount factor
+
+This enables reward propagation across combat states.
+
+Example:
+
+```text
+Far → Push → Medium → Hold → Successful Hits
+```
+
+Even if pushing initially reduces accuracy, the future combat advantage propagates backward through the Q-table.
+
+---
+
+## Training
+
+Training is performed episodically inside the Unity environment.
+
+### Phase 1 – Positioning Training
+
+The player remains mostly stationary.
+
+The enemy learns:
+- to reduce distance when too far
+- to stabilize aim at effective combat ranges
+- to avoid ineffective positioning
+
+---
+
+### Phase 2 – Pressure Adaptation
+
+The player actively shoots the enemy.
+
+The enemy learns:
+- when holding position becomes dangerous
+- when strafing reduces incoming damage
+- when retreating improves survival
+- how combat pressure changes tactical behavior
+
+---
+
+## Debugging and Evaluation
+
+The system includes detailed combat logging for debugging and analysis.
+
+Logged information includes:
+- current state
+- selected action
+- reward received
+- damage dealt
+- damage taken
+- accuracy
+- movement spread
+- movement penalty
+- tactical distance delta
+
+This allows direct observation of:
+- reward propagation
+- tactical adaptation
+- learned combat preferences
+
+---
+
+## Environment
+
+The project is implemented in Unity and includes:
+
+- FPS player controller
+- NavMesh enemy navigation
+- raycast-based shooting
+- dynamic aiming system
+- line-of-sight detection
+- episodic RL combat training
+- adaptive enemy combat AI
+
+---
 
 ## Conclusion
 
-This project demonstrates how combining classical AI techniques, such as Behavior Trees, with learning-based methods, such as Q-learning, can produce more adaptive and realistic enemy behavior in FPS games.
+The project demonstrates a hybrid AI architecture combining:
+- deterministic Behavior Trees
+- adaptive reinforcement learning
 
-The hybrid architecture enables:
-- structured strategic decision-making
-- adaptive tactical behavior optimization
+The final system is capable of learning tactical combat behaviors such as:
+- aggressive repositioning
+- defensive retreating
+- pressure-based movement
+- stable firing behavior
 
-The proposed system aims to provide more dynamic and less predictable enemy interactions compared to traditional rule-based FPS AI systems.
+instead of relying entirely on hardcoded combat rules.

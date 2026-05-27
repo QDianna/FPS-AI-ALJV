@@ -33,8 +33,12 @@ public class GameUI : MonoBehaviour
     private VisualElement buyGrenadeSlot, buyFlashSlot, buySmokeSlot;
     private VisualElement buyPistolAmmoSlot, buyRiffleAmmoSlot;
     private VisualElement buyArmorSlot;
+
+    private VisualElement score;
     
     private Coroutine currentRoutine;
+
+    private Label roundLabel, yourKillsLabel, enemyKillsLabel;
     
     void Awake()
     {
@@ -106,6 +110,12 @@ public class GameUI : MonoBehaviour
         buyPistolAmmoSlot = shopInterface.Q<VisualElement>("BuyPistolAmmoSlot");
         buyRiffleAmmoSlot = shopInterface.Q<VisualElement>("BuyRiffleAmmoSlot");
         buyArmorSlot      = shopInterface.Q<VisualElement>("BuyArmorSlot");
+
+        score = root.Q<VisualElement>("Score");
+        roundLabel = score.Q<Label>("roundLabel");
+        yourKillsLabel = score.Q<Label>("yourKillsLabel");
+        enemyKillsLabel = score.Q<Label>("enemyKillsLabel");
+
     }
     
     void Start()
@@ -119,7 +129,6 @@ public class GameUI : MonoBehaviour
         // display player stats into UI
         UpdateHealthUI();
         UpdateArmorUI();
-        UpdateKillsUI();
         UpdateMoneyUI();
         UpdateBulletsUI();
         
@@ -173,14 +182,20 @@ public class GameUI : MonoBehaviour
     
     public void UpdateHealthUI()
     {
-        if (healthBar != null)
-            healthBar.value = PlayerController.Instance.currentHealth;
+        if (healthBar == null)
+            return;
+        
+        healthBar.value = PlayerController.Instance.health;
+        healthBar.title = PlayerController.Instance.health + " HP";
     }
     
     public void UpdateArmorUI()
     {
-        if (armorBar != null)
-            armorBar.value = PlayerController.Instance.currentArmor;
+        if (armorBar == null)
+            return;
+        
+        armorBar.value = PlayerController.Instance.currentArmor;
+        armorBar.title = PlayerController.Instance.currentArmor + " ARMOR";
     }
 
     public void UpdateBulletsUI()
@@ -197,7 +212,7 @@ public class GameUI : MonoBehaviour
         if (activeFirearm)
         {
             // firearm bullets = weapon's bullets
-            bulletsLabel.text = "x" + PlayerController.Instance.weaponsController.activeFirearm.bullets;
+            // bulletsLabel.text = "x" + PlayerController.Instance.weaponsController.activeFirearm.bullets;
         }
         else if (activeUtility)
         {
@@ -220,8 +235,22 @@ public class GameUI : MonoBehaviour
         if (killsLabel != null)
             killsLabel.text = PlayerController.Instance.kills + " kills";
         
+        if (yourKillsLabel != null)
+            yourKillsLabel.text = "You: " + PlayerController.Instance.kills + " K";
+        
         StopAllCoroutines();
-        StartCoroutine(FlashKills());
+        StartCoroutine(FlashText(killsLabel));
+    }
+
+    public void UpdateRound()
+    {
+        if (roundLabel != null)
+            roundLabel.text = "Round " + GameManager.Instance.currentEpisode;
+    }
+    public void UpdateEnemyKillsUI()
+    {
+        if (enemyKillsLabel != null)
+            enemyKillsLabel.text = "Enemy: " + PlayerController.Instance.deaths + " K";
     }
 
     public void UpdateMoneyUI()
@@ -250,29 +279,18 @@ public class GameUI : MonoBehaviour
     public void OnNoBullets()
     {
         StopAllCoroutines();
-        StartCoroutine(FlashNoBullets());
+        StartCoroutine(FlashText(bulletsLabel));
     }
-
-    IEnumerator FlashNoBullets()
+    
+    IEnumerator FlashText(Label label)
     {
-        bulletsLabel.RemoveFromClassList("normal");
-        bulletsLabel.AddToClassList("warning");
+        label.RemoveFromClassList("normal");
+        label.AddToClassList("warning");
 
         yield return new WaitForSeconds(0.2f);
 
-        bulletsLabel.RemoveFromClassList("warning");
-        bulletsLabel.AddToClassList("normal");
-    }
-
-    IEnumerator FlashKills()
-    {
-        killsLabel.RemoveFromClassList("normal");
-        killsLabel.AddToClassList("warning");
-
-        yield return new WaitForSeconds(0.2f);
-
-        killsLabel.RemoveFromClassList("warning");
-        killsLabel.AddToClassList("normal");
+        label.RemoveFromClassList("warning");
+        label.AddToClassList("normal");
     }
     
     // ------------------------- WEAPONS SLOTS UI ------------------------- //

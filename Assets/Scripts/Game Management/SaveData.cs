@@ -16,7 +16,7 @@ public static class SaveData
             return;
         }
         gameData = new GameData();
-        gameData.health = PlayerController.Instance.currentHealth;
+        gameData.health = PlayerController.Instance.health;
         gameData.kills = PlayerController.Instance.kills;
         
         // This creates a new StreamWriter to write to a specific file path
@@ -39,7 +39,7 @@ public static class SaveData
         string dataToLoad = File.ReadAllText(dataFilePath);
         gameData = JsonUtility.FromJson<GameData>(dataToLoad);
 
-        PlayerController.Instance.currentHealth = gameData.health;
+        PlayerController.Instance.health = gameData.health;
         PlayerController.Instance.kills = gameData.kills;
     }
 }

@@ -1,72 +1,81 @@
 using UnityEngine;
 
-public class FirearmAimer : MonoBehaviour
+public abstract class FirearmAimer : MonoBehaviour
 {
     [Header("References")]
-    public Transform weaponPivot;
+    [SerializeField] public Transform aimRoot;
 
-    [Header("Settings")]
-    [SerializeField] private float rotationSpeed = 360f;
-    [SerializeField] private bool instant = false;
-
-    private bool hasTarget;
-    private Vector3 targetDirection;
+    protected Vector3 targetDirection;
     
-    [SerializeField] private bool usePitchOnly = false;
-
-    public void SetAimDirection(Vector3 worldDirection)
+    public virtual Vector3 GetAimDirection()
     {
-        if (worldDirection.sqrMagnitude < 0.001f)
-        {
-            hasTarget = false;
+        return aimRoot.forward;
+    }
+    
+    public void SetAimDirection(Vector3 direction)
+    {
+        if (direction.sqrMagnitude < 0.001f)
             return;
-        }
 
-        hasTarget = true;
-        targetDirection = worldDirection.normalized;
+        targetDirection =
+            direction.normalized;
     }
 
-    void LateUpdate()
+    public virtual float GetAlignment()
     {
-        if (!hasTarget || weaponPivot == null)
-            return;
-
-        if (usePitchOnly)
-        {
-            // ENEMY MODE (pitch only)
-
-            Quaternion worldRot = Quaternion.LookRotation(targetDirection);
-
-            Quaternion localRot = Quaternion.Inverse(weaponPivot.parent.rotation) * worldRot;
-
-            float pitch = localRot.eulerAngles.x;
-
-            if (pitch > 180f) pitch -= 360f;
-
-            Quaternion targetRot = Quaternion.Euler(pitch, 0f, 0f);
-
-            weaponPivot.localRotation = instant
-                ? targetRot
-                : Quaternion.RotateTowards(
-                    weaponPivot.localRotation,
-                    targetRot,
-                    rotationSpeed * Time.deltaTime
-                );
-        }
+        Vector3 currentDirection =
+            GetAimDirection();
         
-        else
-        {
-            // PLAYER MODE (full aim)
+        Vector3 desiredDirection =
+            targetDirection;
 
-            Quaternion targetRot = Quaternion.LookRotation(targetDirection);
+        currentDirection.y = 0f;
 
-            weaponPivot.rotation = instant
-                ? targetRot
-                : Quaternion.RotateTowards(
-                    weaponPivot.rotation,
-                    targetRot,
-                    rotationSpeed * Time.deltaTime
-                );
-        }
+        float angle =
+            Vector3.Angle(
+                currentDirection.normalized,
+                desiredDirection.normalized
+            );
+
+        float normalized =
+            Mathf.Clamp01(angle / 15f);
+
+        float alignment =
+            1f - normalized;
+
+        return alignment * alignment;
     }
+    
+    /*
+    void OnDrawGizmos()
+    {
+        if (aimRoot == null)
+            return;
+
+        Vector3 origin =
+            aimRoot.position;
+
+        Vector3 currentDirection =
+            GetAimDirection();
+
+        Vector3 desiredDirection =
+            targetDirection;
+
+        // current aim
+        Gizmos.color = Color.green;
+
+        Gizmos.DrawRay(
+            origin,
+            currentDirection.normalized * 3f
+        );
+
+        // desired target
+        Gizmos.color = Color.red;
+
+        Gizmos.DrawRay(
+            origin,
+            desiredDirection.normalized * 3f
+        );
+    }
+    */
 }

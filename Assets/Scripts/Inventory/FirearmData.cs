@@ -8,7 +8,5 @@ public class FirearmData : ItemData
     public GameObject firearmPickupPrefab;
     
     public float damage;
-    public int bullets;
     public float fireRate;  // cooldown between shots
-    public float fireRange;
 }

@@ -28,8 +28,8 @@ Transform:
   m_GameObject: {fileID: 930194183241515649}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -0.12, y: 0.45, z: 0.375}
-  m_LocalScale: {x: 0.17, y: 0.17, z: 0.17}
+  m_LocalPosition: {x: -0.12, y: 0.45, z: 0.275}
+  m_LocalScale: {x: 0.15, y: 0.15, z: 0.15}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 8260173502526451806}
@@ -89,6 +89,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!135 &5039016919420127725
 SphereCollider:
@@ -107,7 +108,7 @@ SphereCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Radius: 0.5
   m_Center: {x: 0, y: 0, z: 0}
@@ -325,6 +326,7 @@ MonoBehaviour:
   m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
+  m_characterHorizontalScale: 1
   m_wordSpacing: 0
   m_lineSpacing: 0
   m_lineSpacingMax: 0
@@ -454,7 +456,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.8, y: 0.8, z: 0.8}
+  m_LocalScale: {x: 0.7, y: 0.8, z: 0.7}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 8260173502526451806}
@@ -514,6 +516,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!1 &2616888855948173450
 GameObject:
@@ -679,6 +682,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!1 &5368820753749074595
 GameObject:
@@ -907,8 +911,8 @@ Transform:
   m_GameObject: {fileID: 6005351194916911327}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.12, y: 0.45, z: 0.375}
-  m_LocalScale: {x: 0.17, y: 0.17, z: 0.17}
+  m_LocalPosition: {x: 0.12, y: 0.45, z: 0.275}
+  m_LocalScale: {x: 0.15, y: 0.15, z: 0.15}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 8260173502526451806}
@@ -968,6 +972,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!135 &7803912585582735955
 SphereCollider:
@@ -986,7 +991,7 @@ SphereCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Radius: 0.5
   m_Center: {x: 0, y: 0, z: 0}
@@ -1005,7 +1010,7 @@ GameObject:
   - component: {fileID: 8876609657800873048}
   - component: {fileID: 2698775143952271886}
   - component: {fileID: 6734381547781259581}
-  - component: {fileID: 730383208140440394}
+  - component: {fileID: 8925081445656587744}
   m_Layer: 7
   m_Name: Enemy
   m_TagString: Enemy
@@ -1051,7 +1056,7 @@ CapsuleCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Radius: 0.4
+  m_Radius: 0.35
   m_Height: 1.6
   m_Direction: 1
   m_Center: {x: 0, y: 0.8, z: 0}
@@ -1066,10 +1071,10 @@ NavMeshAgent:
   m_AgentTypeID: 0
   m_Radius: 0.4
   m_Speed: 3
-  m_Acceleration: 5
+  m_Acceleration: 18
   avoidancePriority: 50
   m_AngularSpeed: 360
-  m_StoppingDistance: 1
+  m_StoppingDistance: 0.05
   m_AutoTraverseOffMeshLink: 1
   m_AutoBraking: 1
   m_AutoRepath: 1
@@ -1090,18 +1095,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyAI
   player: {fileID: 0}
-  points:
+  wayPoints:
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
   retreatPoint: {fileID: 0}
   movement: {fileID: 2698775143952271886}
   healthSystem: {fileID: 6734381547781259581}
   combatSystem: {fileID: 8876609657800873048}
-  attackRange: 10
   waypointTolerance: 0.5
   searchDuration: 5
   debugBehaviour: 1
-  hitReactDuration: 0.2
 --- !u!114 &8876609657800873048
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1116,18 +1122,25 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TurretController
   aimTarget: {fileID: 0}
   firearm: {fileID: 3113191486812887980}
-  firearmAimer: {fileID: 730383208140440394}
-  behaviour: {fileID: 1162340858265279084}
+  aimer: {fileID: 8925081445656587744}
   movement: {fileID: 2698775143952271886}
   healthSystem: {fileID: 6734381547781259581}
-  decisionInterval: 0.5
-  fireCooldown: 0.4
+  eyeHeight: 1.25
+  fov: 120
+  debugCombat: 1
   learningRate: 0.2
-  discount: 0.8
-  epsilon: 0.4
-  debugCombat: 0
-  tookDamageTimer: 0
-  gaveDamageTimer: 0
+  discount: 0.9
+  epsilon: 0.9
+  epsilonDecay: 0.98
+  minEpsilon: 0.3
+  actionDuration: 0.9
+  underFireDuration: 1.8
+  advantageThreshold: 20
+  tooCloseRange: 5
+  closeRange: 10
+  mediumRange: 15
+  loadExistingQTable: 1
+  saveQTable: 1
 --- !u!114 &2698775143952271886
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1140,9 +1153,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0621a6befaa2f9349a6305a9e258ef1d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyMovementAI
+  agent: {fileID: 1878131456324736308}
+  player: {fileID: 0}
   moveSpeed: 3
-  sampleRadius: 5
-  rotationSpeed: 10
+  rotationSpeed: 120
+  moveTolerance: 0.25
   debugMovement: 0
 --- !u!114 &6734381547781259581
 MonoBehaviour:
@@ -1158,9 +1173,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EnemyHealth
   healthBar: {fileID: 867944035325646296}
   tmp: {fileID: 1650363919189921827}
-  maxHealth: 500
-  health: 200
---- !u!114 &730383208140440394
+  maxHealth: 100
+--- !u!114 &8925081445656587744
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -1169,13 +1183,15 @@ MonoBehaviour:
   m_GameObject: {fileID: 7571325187066610193}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 41d740f756cc1d349b64588d2f1caa45, type: 3}
+  m_Script: {fileID: 11500000, guid: 7687b110dbed4c6e86b725949a037b2b, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::WeaponAlign
-  weaponPivot: {fileID: 5905943171198890857}
-  rotationSpeed: 180
-  instant: 0
-  usePitchOnly: 1
+  m_EditorClassIdentifier: Assembly-CSharp::BotAimer
+  aimRoot: {fileID: 8677706093340042051}
+  movement: {fileID: 2698775143952271886}
+  agent: {fileID: 1878131456324736308}
+  baseSpread: 0.001
+  distanceSpreadMultiplier: 0.0085
+  movementSpreadMultiplier: 0.05
 --- !u!1 &8458160512517343382
 GameObject:
   m_ObjectHideFlags: 0
@@ -1233,6 +1249,7 @@ Canvas:
   m_OverridePixelPerfect: 0
   m_SortingBucketNormalizedSize: 0
   m_VertexColorAlwaysGammaSpace: 0
+  m_UseReflectionProbes: 0
   m_AdditionalShaderChannelsFlag: 25
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 0
@@ -1290,6 +1307,14 @@ PrefabInstance:
       propertyPath: m_LocalPosition.z
       value: 0.0505
       objectReference: {fileID: 0}
+    - target: {fileID: 4239515510828785288, guid: 7cd6034e298a8e441a346815e39246d7, type: 3}
+      propertyPath: aimer
+      value: 
+      objectReference: {fileID: 8925081445656587744}
+    - target: {fileID: 5375112123203490899, guid: 7cd6034e298a8e441a346815e39246d7, type: 3}
+      propertyPath: m_Name
+      value: fire point
+      objectReference: {fileID: 0}
     - target: {fileID: 6382103463454196038, guid: 7cd6034e298a8e441a346815e39246d7, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
@@ -1346,6 +1371,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Riffle_00
       objectReference: {fileID: 0}
+    - target: {fileID: 9133049971142533915, guid: 7cd6034e298a8e441a346815e39246d7, type: 3}
+      propertyPath: m_Volume
+      value: 0.055
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -1365,5 +1394,10 @@ MonoBehaviour:
 --- !u!4 &5291807102846600290 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 6382103463454196038, guid: 7cd6034e298a8e441a346815e39246d7, type: 3}
+  m_PrefabInstance: {fileID: 1288469077357348132}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &8677706093340042051 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 7605709488874808935, guid: 7cd6034e298a8e441a346815e39246d7, type: 3}
   m_PrefabInstance: {fileID: 1288469077357348132}
   m_PrefabAsset: {fileID: 0}

@@ -19,7 +19,5 @@ MonoBehaviour:
   price: 50
   firearmPrefab: {fileID: 8997319865255256032, guid: 7cd6034e298a8e441a346815e39246d7, type: 3}
   firearmPickupPrefab: {fileID: 4784104299628431976, guid: 6af37491f6f5466479659bf4927902e3, type: 3}
-  damage: 5
-  bullets: 512
-  fireRate: 0.2
-  fireRange: 20
+  damage: 10
+  fireRate: 0.3

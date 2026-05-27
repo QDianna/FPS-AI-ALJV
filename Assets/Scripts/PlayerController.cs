@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -7,8 +8,8 @@ public class PlayerController : MonoBehaviour, IDamageable
     
     [Header("References")]
     public PlayerWeaponsController weaponsController;
-    [SerializeField] private CharacterController characterController;
-    [SerializeField] private FirearmAimer firearmAimer;
+    public CharacterController characterController;
+    [SerializeField] private PlayerAimer firearmAimer;
     [SerializeField] private Transform weaponHolder;
     
     [SerializeField] private Transform cameraTransform;
@@ -22,12 +23,12 @@ public class PlayerController : MonoBehaviour, IDamageable
     
     [Header("Stats")]
     public float maxHealth = 100;
-    [HideInInspector] public float currentHealth;
     public float maxArmor = 100;
     public float currentArmor = 0;
     public int armorPrice = 12;
 
     public int kills;
+    public int deaths;
     public int money = 10;
     public int moneyPerKill = 7;
     public float currentSpeed;
@@ -54,21 +55,13 @@ public class PlayerController : MonoBehaviour, IDamageable
         
         characterController = GetComponent<CharacterController>();
         weaponsController = GetComponent<PlayerWeaponsController>();
-        firearmAimer = GetComponent<FirearmAimer>();
+        firearmAimer = GetComponent<PlayerAimer>();
     }
     
     void Start()
     {
-        if (GameManager.Instance && SaveData.gameData != null)
-        {
-            currentHealth = SaveData.gameData.health;
-            kills = SaveData.gameData.kills;
-        }
-                
-        if (!cameraTransform && Camera.main)
-            cameraTransform = Camera.main.transform;
-        
-        currentHealth = maxHealth;
+        health = maxHealth;
+        GameUI.Instance.UpdateHealthUI();
         
         SetCanOpenShop(false);
     }
@@ -84,11 +77,12 @@ public class PlayerController : MonoBehaviour, IDamageable
         if (Physics.Raycast(ray, out RaycastHit hit, pickupRange, weaponPickupMask)) 
             GameUI.Instance.ShowNotification("Press E to pick up the weapon");
     }
-    
+
     void LateUpdate()
     {
         firearmAimer.SetAimDirection(cameraTransform.forward);
     }
+
     
     // ---------------------- INPUT SYSTEM CALLBACKS ---------------------- //
     
@@ -125,7 +119,6 @@ public class PlayerController : MonoBehaviour, IDamageable
         if (weaponsController.activeFirearm)
         {
             weaponsController.activeFirearm.Fire(
-                cameraTransform.position, 
                 cameraTransform.forward
             );
         }
@@ -266,28 +259,42 @@ public class PlayerController : MonoBehaviour, IDamageable
     
     public void TakeDamage(float amount, Vector3 attackerPos)
     {
-        /*float armorTank = currentArmor - amount;
+        /*
+        float armorTank = currentArmor - amount;
         if (currentArmor > 0)
             currentArmor -= currentArmor > armorTank ? armorTank : currentArmor;
-        float remainingDamage = currentArmor > armorTank ? 0 : (armorTank - currentArmor); */
-            
+        float remainingDamage = currentArmor > armorTank ? 0 : (armorTank - currentArmor); 
+        GameUI.Instance.UpdateArmorUI();
+        */
         
-        currentHealth -= amount;
-        if (currentHealth <= 0f)
+        health -= amount;
+        
+        GameUI.Instance.UpdateHealthUI();
+        
+        if (health <= 0f)
         {
-            currentHealth = 0f;
-            GameUI.Instance.UpdateHealthUI();
-            // Debug.Log("Player died");
+            OnDeath();
+            health = maxHealth;
             return;
         }
 
-        GameUI.Instance.UpdateHealthUI();
-        // GameUI.Instance.UpdateArmorUI();
     }
-
-    public void Heal(float amount)
+    
+    private void OnDeath()
     {
-        currentHealth = Mathf.Min(maxHealth, currentHealth + amount);
+        deaths++;
+            
+        GameUI.Instance.UpdateEnemyKillsUI();
+
+        Debug.Log("Player dead, resetting episode...");
+        GameManager.Instance.ResetEpisode();
+    }
+    
+    public float health { get; set; }
+
+    public void ResetHealth()
+    {
+        health = maxHealth;
         GameUI.Instance.UpdateHealthUI();
     }
     

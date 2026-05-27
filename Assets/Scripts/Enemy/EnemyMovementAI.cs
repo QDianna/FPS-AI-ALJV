@@ -3,109 +3,98 @@ using UnityEngine.AI;
 
 public class EnemyMovementAI : MonoBehaviour
 {
-    public enum MovementMode
-    {
-        NavMeshFollow,
-        NavMeshManual
-    }
+    [Header("References")]
+    [SerializeField] public NavMeshAgent agent;
 
-    public enum RotationMode
-    {
-        Auto,
-        LookAt
-    }
+    [SerializeField] private Transform player;
 
     [Header("Movement")]
     [SerializeField] private float moveSpeed = 3f;
-    [SerializeField] private float sampleRadius = 1f;
-    [SerializeField] private float rotationSpeed = 20f;
-    
+
+    [SerializeField] private float rotationSpeed = 120f;
+
+    [SerializeField] private float moveTolerance = 0.25f;
+
     [Header("Debug")]
     [SerializeField] private bool debugMovement = false;
 
-    private Transform player;
-    private Transform lookTarget;
-    private Vector3 lookDirection;
-    
-    private bool useDirection;
-
-    private NavMeshAgent agent;
-
-    private MovementMode movementMode;
-    private RotationMode rotationMode;
+    private bool hasLookRequest;
+    private Vector3 requestedLookDirection;
 
     void Awake()
     {
-        agent = GetComponent<NavMeshAgent>();
+        if (!agent)
+            agent = GetComponent<NavMeshAgent>();
     }
 
     void Start()
     {
-        player = PlayerController.Instance.transform;
+        if (!player)
+            player = PlayerController.Instance.transform;
+
         agent.speed = moveSpeed;
+        agent.updateRotation = false;
     }
 
     void Update()
     {
-        HandleRotation();
+        if (hasLookRequest)
+        {
+            RotateToward(
+                requestedLookDirection
+            );
+
+            hasLookRequest = false;
+
+            return;
+        }
+
+        RotateTowardVelocity();
     }
+    // ----------------------------------------- ROTATION ----------------------------------------- //
 
-    // ----------------------------------------- MODE CONTROL ----------------------------------------- //
-
-    public void SetMode_NavMeshFollow()
+    void RotateToward(Vector3 direction)
     {
-        movementMode = MovementMode.NavMeshFollow;
-        agent.isStopped = false;
-        agent.updateRotation = true;
-        
-        if (debugMovement)
-            Debug.Log("[MOVE] Mode = NavMeshFollow");
-    }
+        Quaternion targetRotation =
+            Quaternion.LookRotation(direction);
 
-    public void SetMode_NavMeshManual()
-    {
-        movementMode = MovementMode.NavMeshManual;
-        agent.isStopped = false;
-        agent.updateRotation = false;
-        
-        if (debugMovement)
-            Debug.Log("[MOVE] Mode = NavMeshManual");
-    }
-
-    public void SetRotationAuto()
-    {
-        rotationMode = RotationMode.Auto;
-        agent.updateRotation = true;
-
-        if (debugMovement)
-            Debug.Log("[MOVE] Rotation = Auto");
-    }
-
-    public void SetLookTarget(Transform target)
-    {
-        rotationMode = RotationMode.LookAt;
-        lookTarget = target;
-        useDirection = false;
-        agent.updateRotation = false;
+        transform.rotation =
+            Quaternion.RotateTowards(
+                transform.rotation,
+                targetRotation,
+                rotationSpeed * Time.deltaTime
+            );
     }
     
-    public void SetLookDirection(Vector3 dir)
+    void RotateTowardVelocity()
     {
-        if (dir.sqrMagnitude < 0.001f)
+        Vector3 velocity =
+            agent.velocity;
+
+        velocity.y = 0f;
+
+        if (velocity.sqrMagnitude < 0.001f)
             return;
 
-        rotationMode = RotationMode.LookAt;
-        lookDirection = dir.normalized;
-        useDirection = true;
-        agent.updateRotation = false;
+        RotateToward(
+            velocity.normalized
+        );
+    }
+
+    public void SetLookDirection(Vector3 direction)
+    {
+        direction.y = 0f;
+
+        if (direction.sqrMagnitude < 0.001f)
+            return;
+
+        requestedLookDirection =
+            direction.normalized;
+
+        hasLookRequest = true;
     }
 
     // ----------------------------------------- CORE NAV ----------------------------------------- //
-
-    public void Stop()
-    {
-        agent.isStopped = true;
-    }
 
     public void GoTo(Vector3 position)
     {
@@ -116,128 +105,130 @@ public class EnemyMovementAI : MonoBehaviour
             agent.SetDestination(validPos);
 
             if (debugMovement)
+            {
                 Debug.Log($"[MOVE] GoTo -> {validPos}");
+            }
         }
-        else
-        {
-            if (debugMovement)
-                Debug.Log("[MOVE] Invalid destination");
-        }
-    }
-
-    public bool GetClosestNavMeshPoint(Vector3 target, out Vector3 result)
-    {
-        return TryGetValidNavMeshPosition(target, out result);
     }
 
     // ----------------------------------------- COMBAT MOVEMENT ----------------------------------------- //
 
-    public void StrafeLeft(float distance = 2f)
+    public void PushForward(float distance = 2f)
     {
-        Vector3 dir = -GetRight();
-        MoveInDirection(dir, distance, moveSpeed);
-    }
-
-    public void StrafeRight(float distance = 2f)
-    {
-        Vector3 dir = GetRight();
-        MoveInDirection(dir, distance, moveSpeed);
+        MoveInDirection(
+            transform.forward,
+            distance,
+            moveSpeed
+        );
     }
 
     public void BackOff(float distance = 2f)
     {
-        Vector3 dir = (transform.position - player.position).normalized;
-        MoveInDirection(dir, distance, moveSpeed);
+        MoveInDirection(
+            -transform.forward,
+            distance,
+            moveSpeed
+        );
     }
 
-    public void PushForward(float distance = 2f)
+    public void StrafeLeft(float distance = 2f)
     {
-        Vector3 dir = (player.position - transform.position).normalized;
-        MoveInDirection(dir, distance, moveSpeed);
-    }
-    
-    public void MaintainDistance(float min, float max)
-    {
-        float dist = Vector3.Distance(transform.position, player.position);
-
-        if (dist < min)
-            BackOff(1f);
-        else if (dist > max)
-            PushForward(1f);
-        else
-            Stop();
+        MoveInDirection(
+            -transform.right,
+            distance,
+            moveSpeed
+        );
     }
 
-    public void HoldPosition()
+    public void StrafeRight(float distance = 2f)
     {
-        Stop();
+        MoveInDirection(
+            transform.right,
+            distance,
+            moveSpeed
+        );
     }
 
-    private void MoveInDirection(Vector3 dir, float distance, float speed)
+    private void MoveInDirection(
+        Vector3 dir,
+        float distance,
+        float speed)
     {
-        Vector3 target = transform.position + dir * distance;
+        dir.y = 0f;
+        dir.Normalize();
 
-        if (TryGetValidNavMeshPosition(target, out Vector3 validPos))
+        Vector3 target =
+            transform.position + dir * distance;
+
+        if (TryGetValidNavMeshPosition(
+                target,
+                out Vector3 validPos))
         {
             agent.isStopped = false;
             agent.speed = speed;
             agent.SetDestination(validPos);
 
             if (debugMovement)
-                Debug.Log($"[MOVE] Directional move -> {validPos}");
+            {
+                Debug.Log($"[MOVE] -> {validPos}");
+            }
         }
     }
 
-    // ----------------------------------------- ROTATION ----------------------------------------- //
+    // ----------------------------------------- VALIDATION ----------------------------------------- //
 
-    private void HandleRotation()
+    public bool CanPushForward(float distance = 2f)
     {
-        if (rotationMode != RotationMode.LookAt)
-            return;
+        return CanMoveInDirection(
+            transform.forward,
+            distance
+        );
+    }
 
-        Vector3 dir;
+    public bool CanRetreat(float distance = 2f)
+    {
+        return CanMoveInDirection(
+            -transform.forward,
+            distance
+        );
+    }
 
-        if (useDirection)
-        {
-            dir = lookDirection;
-        }
-        else if (lookTarget != null)
-        {
-            dir = lookTarget.position - transform.position;
-        }
-        else
-        {
-            return;
-        }
+    public bool CanStrafeLeft(float distance = 2f)
+    {
+        return CanMoveInDirection(
+            -transform.right,
+            distance
+        );
+    }
 
+    public bool CanStrafeRight(float distance = 2f)
+    {
+        return CanMoveInDirection(
+            transform.right,
+            distance
+        );
+    }
+
+    private bool CanMoveInDirection(
+        Vector3 dir,
+        float distance)
+    {
         dir.y = 0f;
+        dir.Normalize();
 
-        if (dir.sqrMagnitude < 0.001f)
-            return;
+        Vector3 target =
+            transform.position + dir * distance;
 
-        Quaternion targetRot = Quaternion.LookRotation(dir.normalized);
-
-        transform.rotation = Quaternion.Slerp(
-            transform.rotation,
-            targetRot,
-            Time.deltaTime * rotationSpeed
+        return TryGetValidNavMeshPosition(
+            target,
+            out _
         );
     }
 
     // ----------------------------------------- HELPERS ----------------------------------------- //
 
-    public Vector3 GetRight()
-    {
-        Vector3 toPlayer = (player.position - transform.position);
-        toPlayer.y = 0f;
-
-        if (toPlayer.sqrMagnitude < 0.01f)
-            return transform.right;
-
-        return Vector3.Cross(Vector3.up, toPlayer.normalized);
-    }
-
-    public bool HasReachedDestination(float tolerance = 0.5f)
+    public bool HasReachedDestination(
+        float tolerance = 0.25f)
     {
         if (!agent.hasPath)
             return true;
@@ -245,13 +236,32 @@ public class EnemyMovementAI : MonoBehaviour
         return agent.remainingDistance <= tolerance;
     }
 
-    private bool TryGetValidNavMeshPosition(Vector3 target, out Vector3 result)
+    public bool TryGetValidNavMeshPosition(
+        Vector3 desiredTarget,
+        out Vector3 result)
     {
-        Vector3 flatTarget = target;
+        Vector3 flatTarget = desiredTarget;
+
         flatTarget.y = transform.position.y;
-        
-        if (NavMesh.SamplePosition(flatTarget, out NavMeshHit hit, sampleRadius, NavMesh.AllAreas))
+
+        if (NavMesh.SamplePosition(
+                flatTarget,
+                out NavMeshHit hit,
+                moveTolerance,
+                NavMesh.AllAreas))
         {
+            float error =
+                Vector3.Distance(
+                    flatTarget,
+                    hit.position
+                );
+
+            if (error > moveTolerance)
+            {
+                result = transform.position;
+                return false;
+            }
+
             result = hit.position;
             return true;
         }
@@ -259,5 +269,6 @@ public class EnemyMovementAI : MonoBehaviour
         result = transform.position;
         return false;
     }
+
 }
 
